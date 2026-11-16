@@ -216,6 +216,14 @@
                     </div>
                 </div>
 
+                <!-- Fotografía opcional del modelo -->
+                <div class="flex flex-col gap-2">
+                    <label for="model-photo" class="text-xs font-medium text-zinc-400">Fotografía del modelo (opcional)</label>
+                    <input type="file" id="model-photo" accept="image/jpeg,image/png,image/webp" onchange="previewModelPhoto()" class="w-full text-sm rounded-xl border border-zinc-200 dark:border-studio-700 p-3">
+                    <p class="text-xs text-zinc-500">JPG, PNG o WebP. Se reduce automáticamente para incluirla en el contrato y en el PDF.</p>
+                    <img id="model-photo-preview" alt="Vista previa de la fotografía" class="hidden w-32 h-40 object-cover rounded-xl border border-zinc-200">
+                </div>
+
                 <!-- Canvas de Firma Digital -->
                 <div class="flex flex-col gap-2">
                     <div class="flex items-center justify-between">
@@ -678,6 +686,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                             ${md.ethnicity ? `<p class="sm:col-span-2"><strong>Ethnicity:</strong> ${escapeHTML(md.ethnicity)}</p>` : ''}
                             ${md.guardianName ? `<p class="sm:col-span-2"><strong>Parent/Guardian:</strong> ${escapeHTML(md.guardianName)} (CURP: ${escapeHTML(md.guardianCurp)})</p>` : ''}
                         </div>
+                        ${md.photoDataUrl ? `<div class="mt-4"><p class="text-xs font-bold mb-2">Model Photograph:</p><img src="${md.photoDataUrl}" alt="Fotografía del modelo" class="w-32 h-40 object-cover rounded-lg border border-zinc-200"></div>` : ''}
                         <div class="mt-4 p-4 border border-zinc-200 rounded-xl bg-zinc-50 flex flex-col items-center gap-2 max-w-xs">
                             <img src="${md.signatureDataUrl}" alt="Model Signature" class="max-h-20 object-contain">
                             <span class="text-[10px] text-zinc-400 font-mono">Model's Signature — Date: ${new Date(c.signedAt).toLocaleDateString()}</span>
@@ -693,7 +702,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                         <p class="text-xs text-zinc-500 font-mono">Shoot Date: ${c.shootDate} | Release No.: ${c.releaseNo}</p>
                     </div>
                     <div class="text-right">
-                        <span class="text-xs font-mono bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-lg">Braiton Saldaña Studio</span>
+                        <span class="text-xs font-mono bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-lg">Braiton Saldaña</span>
                     </div>
                 </div>
                 <div class="text-xs leading-relaxed text-zinc-700 whitespace-pre-line font-sans">${escapeHTML(terms)}</div>
@@ -785,6 +794,47 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             }
         }
 
+        let modelPhotoDataUrl = '';
+        async function previewModelPhoto() {
+            const file = document.getElementById('model-photo').files?.[0];
+            const preview = document.getElementById('model-photo-preview');
+            modelPhotoDataUrl = '';
+            preview.classList.add('hidden');
+            if (!file) return;
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+                document.getElementById('model-photo').value = '';
+                showToast('Selecciona una imagen JPG, PNG o WebP de máximo 10 MB.', 'error');
+                return;
+            }
+            try {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                try {
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve; img.onerror = reject; img.src = url;
+                    });
+                    const canvas = document.createElement('canvas');
+                    const scale = Math.min(1, 480 / Math.max(img.naturalWidth, img.naturalHeight));
+                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    for (const quality of [0.75, 0.6, 0.45, 0.3]) {
+                        modelPhotoDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        if (modelPhotoDataUrl.length <= 90000) break;
+                    }
+                    if (modelPhotoDataUrl.length > 90000) throw new Error('La fotografía no se pudo reducir lo suficiente.');
+                    preview.src = modelPhotoDataUrl;
+                    preview.classList.remove('hidden');
+                } finally { URL.revokeObjectURL(url); }
+            } catch (e) {
+                modelPhotoDataUrl = '';
+                document.getElementById('model-photo').value = '';
+                showToast('No se pudo procesar la fotografía: ' + e.message, 'error');
+            }
+        }
+
         async function submitModelSignature() {
             const fullName = document.getElementById('model-full-name').value.trim();
             const dob = document.getElementById('model-dob').value;
@@ -828,7 +878,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             if (submitButton) submitButton.disabled = true;
             try {
                 await signingRequest({ action: 'sign', token: remoteToken, modelData: {
-                    fullName, dob, gender, curp, address, phone, email, ethnicity, guardianName, guardianCurp, signatureDataUrl
+                    fullName, dob, gender, curp, address, phone, email, ethnicity, guardianName, guardianCurp, signatureDataUrl, photoDataUrl: modelPhotoDataUrl
                 }});
                 remoteToken = null;
                 document.getElementById('signing-form-box').innerHTML = '<div class="text-center py-8"><h3 class="font-bold text-xl mb-3">Firma enviada correctamente</h3><p>Tu contrato quedó registrado. Puedes cerrar esta página.</p></div>';
@@ -872,7 +922,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                         <h2 style="font-size:20px; font-weight:bold; margin:0;">MODEL RELEASE</h2>
                         <p style="font-size:11px; color:#71717a; font-family:monospace; margin:4px 0 0 0;">Shoot Date: ${c.shootDate} | Release No.: ${c.releaseNo}</p>
                     </div>
-                    <div style="font-size:12px; font-weight:bold; font-family:monospace; background:#f4f4f5; padding:6px 12px; border-radius:8px;">Braiton Saldaña Studio</div>
+                    <div style="font-size:12px; font-weight:bold; font-family:monospace; background:#f4f4f5; padding:6px 12px; border-radius:8px;">Braiton Saldaña</div>
                 </div>
                 <div style="font-size:11px; line-height:1.6; color:#3f3f46; white-space:pre-line; margin-bottom:24px;">${escapeHTML(terms)}</div>
                 <div style="border-top:1px solid #e4e4e7; padding-top:16px;">
@@ -886,6 +936,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                         ${c.modelData.ethnicity ? `<p style="grid-column: span 2;"><strong>Ethnicity:</strong> ${escapeHTML(c.modelData.ethnicity)}</p>` : ''}
                         ${c.modelData.guardianName ? `<p style="grid-column: span 2;"><strong>Parent/Guardian:</strong> ${escapeHTML(c.modelData.guardianName)} (CURP: ${escapeHTML(c.modelData.guardianCurp)})</p>` : ''}
                     </div>
+                    ${c.modelData.photoDataUrl ? `<div style="margin-top:16px;"><p style="font-size:11px;font-weight:bold;">Model Photograph:</p><img src="${c.modelData.photoDataUrl}" style="width:110px;height:145px;object-fit:cover;border:1px solid #d4d4d8;border-radius:6px;"></div>` : ''}
                     <div style="margin-top:16px; display:flex; flex-direction:column; align-items:flex-start;">
                         <img src="${c.modelData.signatureDataUrl}" style="max-height:60px; object-fit:contain; border-bottom:1px solid #d4d4d8; padding-bottom:4px;">
                         <span style="font-size:10px; color:#71717a; font-family:monospace; margin-top:4px;">Model's Signature — Date Signed: ${new Date(c.signedAt).toLocaleDateString()}</span>
