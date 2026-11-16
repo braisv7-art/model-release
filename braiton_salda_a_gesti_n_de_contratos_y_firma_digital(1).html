@@ -1,0 +1,1546 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Braiton Saldaña | Model Release & Firma Digital</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter & JetBrains Mono -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- jsPDF UMD (Carga estándar síncrona/diferida sin módulos ES que bloqueen) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        studio: {
+                            950: '#09090b',
+                            900: '#121215',
+                            850: '#18181c',
+                            800: '#222228',
+                            700: '#32323a',
+                        }
+                    }
+                }
+            }
+        };
+    </script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #52525b;
+            border-radius: 3px;
+        }
+        .signature-canvas {
+            touch-action: none;
+            cursor: crosshair;
+        }
+        /* Estilos de respaldo para impresión directa en caso de no usar jsPDF */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-fallback-sheet, #print-fallback-sheet * {
+                visibility: visible;
+            }
+            #print-fallback-sheet {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white !important;
+                color: black !important;
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body class="bg-zinc-50 text-zinc-900 dark:bg-studio-950 dark:text-zinc-100 min-h-screen flex flex-col transition-colors duration-200">
+
+    <!-- Notificaciones Toast (Sin alert) -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+
+    <!-- Modal Reutilizable (Confirmaciones, Importar/Exportar, Vista Previa) -->
+    <div id="custom-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
+            <div class="flex items-center justify-between mb-4">
+                <h3 id="modal-title" class="text-lg font-semibold tracking-tight">Título</h3>
+                <button type="button" onclick="closeModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1.5 rounded-lg">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div id="modal-body" class="text-sm text-zinc-600 dark:text-zinc-300 space-y-3 mb-6 max-h-[65vh] overflow-y-auto"></div>
+            <div id="modal-actions" class="flex justify-end gap-3"></div>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- BARRA SUPERIOR DE MARCA: BRAITON SALDAÑA                              -->
+    <!-- ===================================================================== -->
+    <header class="border-b border-zinc-200 dark:border-studio-800 bg-white/90 dark:bg-studio-950/90 backdrop-blur-md sticky top-0 z-40">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center font-bold tracking-tighter text-sm shadow-sm">
+                    BS
+                </div>
+                <div>
+                    <span class="font-semibold tracking-tight text-sm sm:text-base block leading-none uppercase">Braiton Saldaña</span>
+                    <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tracking-wider uppercase">Model Release Studio</span>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 sm:gap-3">
+                <!-- Botón Volver al Panel (Visible en modo firma) -->
+                <button type="button" id="btn-back-admin" onclick="switchToAdminView()" class="hidden text-xs font-medium px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-studio-800 dark:hover:bg-studio-700 border border-zinc-200 dark:border-studio-700 transition flex items-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+                    <span>Panel Estudio</span>
+                </button>
+
+                <!-- Botón Cambiar Tema Claro / Oscuro -->
+                <button type="button" onclick="toggleTheme()" title="Cambiar tema" class="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-studio-900 dark:hover:bg-studio-800 border border-zinc-200 dark:border-studio-800 text-zinc-600 dark:text-zinc-300 transition">
+                    <svg id="icon-sun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                    <svg id="icon-moon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 1: PANEL DEL FOTÓGRAFO (CARGA INSTANTÁNEA)                      -->
+    <!-- ===================================================================== -->
+    <main id="admin-view" class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
+        
+        <!-- Cabecera y Acciones -->
+        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-200 dark:border-studio-800 pb-6">
+            <div>
+                <p class="text-xs font-mono uppercase tracking-widest text-zinc-500 dark:text-zinc-400 mb-1">Archivo Legal & Derechos de Imagen</p>
+                <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Contratos de Braiton Saldaña</h1>
+            </div>
+            <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" onclick="openBackupModal()" class="px-4 py-2.5 rounded-xl bg-white dark:bg-studio-900 hover:bg-zinc-100 dark:hover:bg-studio-800 border border-zinc-200 dark:border-studio-700 text-xs sm:text-sm font-medium transition flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+                    <span>Respaldo JSON</span>
+                </button>
+                <button type="button" onclick="openNewContractModal()" class="px-5 py-2.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-zinc-950 font-semibold text-xs sm:text-sm transition shadow-sm flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                    <span>Nuevo Contrato</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Métricas Rápidas -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400">Total Contratos</p>
+                    <p id="stat-total" class="text-3xl font-semibold mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-zinc-100 dark:bg-studio-800 flex items-center justify-center text-zinc-600 dark:text-zinc-300">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-mono uppercase text-amber-600 dark:text-amber-400">Pendientes</p>
+                    <p id="stat-pending" class="text-3xl font-semibold text-amber-600 dark:text-amber-400 mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6l4 2"/></svg>
+                </div>
+            </div>
+            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex items-center justify-between">
+                <div>
+                    <p class="text-xs font-mono uppercase text-emerald-600 dark:text-emerald-400">Firmados</p>
+                    <p id="stat-signed" class="text-3xl font-semibold text-emerald-600 dark:text-emerald-400 mt-1">0</p>
+                </div>
+                <div class="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                </div>
+            </div>
+        </div>
+
+        <!-- Buscador y Filtros -->
+        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+            <div class="relative flex-1 max-w-md">
+                <svg class="w-4 h-4 text-zinc-400 absolute left-3.5 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35"/></svg>
+                <input type="text" id="search-input" oninput="renderContractsList()" placeholder="Buscar proyecto, modelo o locación..." 
+                    class="w-full bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 focus:border-zinc-500 rounded-xl pl-10 pr-4 py-2.5 text-sm outline-none transition">
+            </div>
+            <div class="flex items-center gap-1.5 bg-white dark:bg-studio-900 p-1 rounded-xl border border-zinc-200 dark:border-studio-800 self-start">
+                <button type="button" onclick="setFilter('all')" id="filter-all" class="px-3.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 text-white dark:bg-studio-800 transition">Todos</button>
+                <button type="button" onclick="setFilter('pending')" id="filter-pending" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Pendientes</button>
+                <button type="button" onclick="setFilter('signed')" id="filter-signed" class="px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition">Firmados</button>
+            </div>
+        </div>
+
+        <!-- Contenedor de Lista de Contratos -->
+        <div id="contracts-list" class="grid grid-cols-1 gap-4"></div>
+
+        <!-- Estado Vacío -->
+        <div id="empty-state" class="hidden bg-white dark:bg-studio-900/50 border border-dashed border-zinc-300 dark:border-studio-800 rounded-2xl p-12 text-center">
+            <div class="w-12 h-12 rounded-2xl bg-zinc-100 dark:bg-studio-800 mx-auto flex items-center justify-center text-zinc-500 dark:text-zinc-400 mb-4">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+            </div>
+            <h3 class="text-base font-medium mb-1">No hay contratos registrados</h3>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto mb-6">Crea un nuevo acuerdo de cesión de imagen para enviarlo por WhatsApp al modelo o firmarlo en el set.</p>
+            <button type="button" onclick="openNewContractModal()" class="px-5 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm hover:opacity-90 transition inline-flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                <span>Crear Primer Contrato</span>
+            </button>
+        </div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- MODAL CREAR NUEVO CONTRATO                                            -->
+    <!-- ===================================================================== -->
+    <div id="new-contract-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl my-8">
+            <div class="flex items-center justify-between border-b border-zinc-200 dark:border-studio-800 pb-4 mb-6">
+                <div>
+                    <h2 class="text-xl font-semibold">Nuevo Model Release</h2>
+                    <p class="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">El enlace generado contiene los datos del contrato listos para firmar en cualquier celular.</p>
+                </div>
+                <button type="button" onclick="closeNewContractModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-2 rounded-xl bg-zinc-100 dark:bg-studio-800">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+
+            <form id="new-contract-form" onsubmit="handleCreateContract(event)" class="space-y-5">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Proyecto / Sesión *</label>
+                        <input type="text" id="inp-project" required placeholder="Ej. Editorial Moda Urbano" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Fecha de Sesión *</label>
+                        <input type="date" id="inp-date" required 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Ciudad / Locación *</label>
+                        <input type="text" id="inp-location" required placeholder="Ej. Ciudad de México" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Tipo de Licencia *</label>
+                        <select id="inp-usage" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                            <option value="Commercial, Editorial and Worldwide Licensing">Commercial, Editorial and Worldwide Licensing</option>
+                            <option value="Editorial and Portfolio Use Exclusively">Editorial and Portfolio Use Exclusively</option>
+                            <option value="Advertising Campaign (12 months)">Advertising Campaign (12 months)</option>
+                            <option value="TFP Collaboration (Time for Print)">TFP Collaboration (Time for Print)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Nombre del Modelo (Opcional)</label>
+                        <input type="text" id="inp-model-prefill" placeholder="Dejar vacío para que lo llene el modelo" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Compensación / Acuerdo</label>
+                        <input type="text" id="inp-compensation" value="Agreed compensation and/or delivery of edited photographs" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-1.5">
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400">Idioma / Plantilla Legal</label>
+                        <div class="flex gap-2">
+                            <button type="button" id="btn-tpl-es" onclick="setTemplateLang('es')" class="text-xs px-3 py-1 rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-medium transition">Español</button>
+                            <button type="button" id="btn-tpl-bi" onclick="setTemplateLang('bi')" class="text-xs px-3 py-1 rounded-lg bg-zinc-100 dark:bg-studio-800 text-zinc-700 dark:text-zinc-300 font-medium transition">Bilingüe ES / EN</button>
+                        </div>
+                    </div>
+                    <textarea id="inp-terms" rows="5" required
+                        class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl p-3.5 text-xs leading-relaxed font-mono outline-none"></textarea>
+                    <p class="text-[11px] text-zinc-500 mt-1">Variables: <code>{{FOTOGRAFO}}</code>, <code>{{MODELO}}</code>, <code>{{FECHA}}</code>, <code>{{LUGAR}}</code>, <code>{{USO}}</code>, <code>{{COMPENSACION}}</code></p>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-studio-800">
+                    <button type="button" onclick="closeNewContractModal()" class="px-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 dark:hover:bg-studio-700 text-sm font-medium transition">Cancelar</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm hover:opacity-90 transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+                        <span>Crear y Generar Enlace</span>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ===================================================================== -->
+    <!-- VISTA 2: PORTAL DE FIRMA PARA EL MODELO (PÚBLICO / EN SET)            -->
+    <!-- ===================================================================== -->
+    <main id="signing-view" class="hidden flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8">
+        
+        <!-- Banner de Contrato Ya Firmado -->
+        <div id="signed-success-banner" class="hidden bg-white dark:bg-studio-900 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-lg">
+            <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 mx-auto flex items-center justify-center">
+                <svg class="w-8 h-8" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div>
+                <span class="inline-block px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-mono text-xs uppercase tracking-wider mb-2">Acuerdo Certificado</span>
+                <h2 class="text-2xl font-semibold">Contrato Firmado con Éxito</h2>
+                <p class="text-sm text-zinc-500 dark:text-zinc-400 max-w-md mx-auto mt-2">El acuerdo con <strong>Braiton Saldaña</strong> ha sido sellado con firma digital y certificado criptográfico SHA-256.</p>
+            </div>
+
+            <div class="bg-zinc-50 dark:bg-studio-950 border border-zinc-200 dark:border-studio-800 rounded-xl p-4 text-left font-mono text-xs space-y-1.5 max-w-lg mx-auto">
+                <div class="flex justify-between"><span class="text-zinc-500">Modelo:</span> <span id="receipt-model" class="font-medium"></span></div>
+                <div class="flex justify-between"><span class="text-zinc-500">Fecha UTC:</span> <span id="receipt-date"></span></div>
+                <div class="pt-1.5 border-t border-zinc-200 dark:border-studio-800">
+                    <span class="text-zinc-500 block mb-0.5">Sello SHA-256:</span>
+                    <span id="receipt-hash" class="text-[10px] text-emerald-600 dark:text-emerald-400 break-all"></span>
+                </div>
+            </div>
+
+            <div class="pt-2 flex flex-wrap justify-center gap-3">
+                <button type="button" id="btn-download-signed-pdf" class="px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm hover:opacity-90 transition inline-flex items-center gap-2 shadow-md">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                    <span>Descargar PDF Certificado</span>
+                </button>
+                <button type="button" onclick="window.print()" class="px-5 py-3 rounded-xl bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 dark:hover:bg-studio-700 font-medium text-sm transition inline-flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                    <span>Imprimir</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Formulario de Firma -->
+        <div id="signing-form-container" class="space-y-6">
+            <!-- Encabezado del Contrato -->
+            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6">
+                <div class="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-200 dark:border-studio-800 pb-4 mb-4">
+                    <span class="text-xs font-mono uppercase tracking-widest text-amber-600 dark:text-amber-400 flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                        Pendiente de Firma Digital
+                    </span>
+                    <span id="sign-contract-id" class="text-xs font-mono text-zinc-400">REF: ---</span>
+                </div>
+                <h1 id="sign-project-title" class="text-2xl font-semibold mb-4">Título del Proyecto</h1>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+                    <div class="bg-zinc-50 dark:bg-studio-950 p-3 rounded-xl border border-zinc-200 dark:border-studio-800">
+                        <span class="text-zinc-500 font-mono block uppercase text-[10px]">Fotógrafo / Filmmaker</span>
+                        <span id="sign-photographer" class="font-semibold mt-0.5 block">Braiton Saldaña Valdez</span>
+                    </div>
+                    <div class="bg-zinc-50 dark:bg-studio-950 p-3 rounded-xl border border-zinc-200 dark:border-studio-800">
+                        <span class="text-zinc-500 font-mono block uppercase text-[10px]">Fecha de Sesión</span>
+                        <span id="sign-date" class="font-medium mt-0.5 block">---</span>
+                    </div>
+                    <div class="bg-zinc-50 dark:bg-studio-950 p-3 rounded-xl border border-zinc-200 dark:border-studio-800">
+                        <span class="text-zinc-500 font-mono block uppercase text-[10px]">Locación</span>
+                        <span id="sign-location" class="font-medium mt-0.5 block">---</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Texto Legal -->
+            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6">
+                <div class="flex items-center justify-between mb-3">
+                    <h2 class="text-xs font-mono uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Cláusulas del Contrato</h2>
+                    <span class="text-[11px] text-zinc-400">Desliza para leer completo</span>
+                </div>
+                <div id="sign-contract-body" class="bg-zinc-50 dark:bg-studio-950 border border-zinc-200 dark:border-studio-800 rounded-xl p-5 text-sm leading-relaxed max-h-72 overflow-y-auto whitespace-pre-line"></div>
+            </div>
+
+            <!-- Formulario del Modelo -->
+            <form id="model-signature-form" onsubmit="handleModelSignSubmit(event)" class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6 space-y-6">
+                <h2 class="text-base font-semibold border-b border-zinc-200 dark:border-studio-800 pb-3">1. Model Information (Datos del Modelo)</h2>
+                
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Model's Name (Nombre Completo) *</label>
+                        <input type="text" id="mod-fullname" required oninput="updateLiveContractPreview()" placeholder="Nombre y apellidos" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">CURP / INE No. *</label>
+                        <input type="text" id="mod-idnumber" required placeholder="Clave CURP o No. de INE" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Date of Birth *</label>
+                        <input type="date" id="mod-dob" required onchange="checkMinorStatus()"
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Gender (Género) *</label>
+                        <select id="mod-gender" required class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                            <option value="M">M (Masculino)</option>
+                            <option value="F">F (Femenino)</option>
+                            <option value="Otro">Otro / No especificado</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Model's Phone *</label>
+                        <input type="tel" id="mod-phone" required placeholder="477 000 0000" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Model's E-Mail *</label>
+                        <input type="email" id="mod-email" required placeholder="correo@ejemplo.com" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                </div>
+
+                <!-- Dirección Completa como en el PDF -->
+                <div class="space-y-4 pt-1">
+                    <div>
+                        <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Model's Address (Calle, Número y Colonia) *</label>
+                        <input type="text" id="mod-address" required placeholder="Ej. Cto Heroes de Tenango 190A, Heroes de Leon" 
+                            class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">City / State (Ciudad / Estado) *</label>
+                            <input type="text" id="mod-citystate" required placeholder="Ej. León, Guanajuato" 
+                                class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Country (País) *</label>
+                            <input type="text" id="mod-country" required value="México" 
+                                class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Zip / Postal Code *</label>
+                            <input type="text" id="mod-zip" required placeholder="Ej. 37544" 
+                                class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 focus:border-zinc-900 dark:focus:border-white rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección Condicional para Menores de 18 Años -->
+                <div id="minor-guardian-section" class="hidden bg-amber-500/10 border border-amber-500/30 rounded-2xl p-5 space-y-4">
+                    <div>
+                        <span class="text-xs font-mono uppercase text-amber-700 dark:text-amber-400 font-semibold">Autorización de Padre o Tutor Legal (Menor de 18 años)</span>
+                        <p class="text-xs text-zinc-600 dark:text-zinc-300 mt-1">
+                            If Model is not yet eighteen (18) years old: I, the undersigned, hereby warrant that I am the parent or legal guardian of the above named model, a minor, and have full authority to authorize the above Release which I have read and approved.
+                        </p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-mono uppercase text-zinc-600 dark:text-zinc-300 mb-1.5">Name of Parent or Legal Guardian *</label>
+                            <input type="text" id="guardian-name" placeholder="Nombre completo del padre o tutor" 
+                                class="w-full bg-white dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-mono uppercase text-zinc-600 dark:text-zinc-300 mb-1.5">Guardian Address (if different)</label>
+                            <input type="text" id="guardian-address" placeholder="Dirección si es distinta a la del modelo" 
+                                class="w-full bg-white dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Additional Information: Ethnicity (Optional) -->
+                <div>
+                    <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-2">Additional Information (Optional - Ethnicity for Stock Descriptive Purposes)</label>
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 bg-zinc-50 dark:bg-studio-950 border border-zinc-200 dark:border-studio-800 rounded-xl p-3.5 text-xs">
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Hispanic, Latin" class="rounded"> Hispanic, Latin</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Caucasian, White" class="rounded"> Caucasian, White</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Mixed Race" class="rounded"> Mixed Race</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Black / African" class="rounded"> Black / African</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Native American" class="rounded"> Native American</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Asian" class="rounded"> Asian</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Middle Eastern" class="rounded"> Middle Eastern</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Pacific Islander" class="rounded"> Pacific Islander</label>
+                        <label class="flex items-center gap-2 cursor-pointer"><input type="checkbox" name="ethnicity" value="Other" class="rounded"> Other</label>
+                    </div>
+                </div>
+
+                <!-- Foto de Retrato del Modelo / ID (Como en la esquina superior izquierda de tu PDF) -->
+                <div>
+                    <label class="block text-xs font-mono uppercase text-zinc-500 dark:text-zinc-400 mb-1.5">Retrato del Modelo / Identificación Oficial (Para el encabezado del PDF)</label>
+                    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 bg-zinc-50 dark:bg-studio-950 border border-dashed border-zinc-300 dark:border-studio-700 rounded-xl p-4">
+                        <label class="cursor-pointer px-4 py-2.5 rounded-xl bg-zinc-200 dark:bg-studio-800 hover:opacity-90 text-xs font-medium transition flex items-center gap-2 shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><circle cx="12" cy="13" r="3"/></svg>
+                            <span>Tomar Foto / Subir Retrato o ID</span>
+                            <input type="file" id="mod-idphoto" accept="image/*" capture="user" onchange="handleIdPhotoUpload(event)" class="hidden">
+                        </label>
+                        <span id="id-photo-status" class="text-xs text-zinc-500">Se colocará en la esquina superior del PDF oficial tal como en tu plantilla.</span>
+                        <img id="id-photo-preview" class="hidden h-14 w-auto rounded-lg border border-zinc-300 dark:border-studio-700 object-cover ml-auto" alt="Vista previa">
+                    </div>
+                </div>
+
+                <!-- Pad de Firma Digital HTML5 Canvas -->
+                <div class="pt-2">
+                    <div class="flex items-center justify-between mb-2">
+                        <h2 class="text-base font-semibold">2. Model's Signature (o Padre/Tutor si es menor) *</h2>
+                        <button type="button" onclick="clearSignaturePad()" class="text-xs font-mono text-zinc-600 dark:text-zinc-300 hover:opacity-80 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-zinc-100 dark:bg-studio-800">
+                            <span>Limpiar Firma</span>
+                        </button>
+                    </div>
+                    
+                    <div class="relative bg-white rounded-2xl overflow-hidden border-2 border-zinc-300 dark:border-studio-700 h-44 sm:h-52 shadow-inner">
+                        <canvas id="signature-canvas" class="signature-canvas w-full h-full block"></canvas>
+                        <div class="absolute bottom-3 left-4 right-4 border-b border-zinc-300 pointer-events-none flex justify-between items-end">
+                            <span class="text-[10px] font-mono text-zinc-400 uppercase">X Model's / Guardian Signature</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Casilla de Consentimiento -->
+                <div class="bg-zinc-50 dark:bg-studio-950 border border-zinc-200 dark:border-studio-800 rounded-xl p-4">
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" id="mod-consent" required class="mt-1 w-4 h-4 rounded border-zinc-400 text-zinc-900 focus:ring-0">
+                        <span class="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                            I warrant that I have read the above authorization, release and agreement prior to its execution, and accept electronic signature with full legal validity for <strong>Braiton Saldaña Valdez</strong>.
+                        </span>
+                    </label>
+                </div>
+
+                <button type="submit" id="btn-finalize-sign" class="w-full py-3.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm hover:opacity-90 transition shadow-lg flex items-center justify-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    <span>Aceptar y Firmar Model Release Oficial</span>
+                </button>
+            </form>
+        </div>
+
+        <!-- Hoja oculta exclusiva para impresión de respaldo -->
+        <div id="print-fallback-sheet" class="hidden"></div>
+    </main>
+
+    <!-- ===================================================================== -->
+    <!-- JAVASCRIPT VANILLA (SIN DEPENDENCIAS DE MÓDULOS NI BLOQUEOS)          -->
+    <!-- ===================================================================== -->
+    <script>
+        const STORAGE_KEY = 'braiton_saldana_contracts_v1';
+        const THEME_KEY = 'braiton_saldana_theme';
+        const PHOTOGRAPHER_BRAND = 'Braiton Saldaña Valdez';
+        const PHOTOGRAPHER_SIGN = 'Braiton Saldaña';
+
+        // Plantillas Legales basadas exactamente en tu documento model-release.pdf
+        const TEMPLATES = {
+            es: `MODEL RELEASE — ACUERDO DE CESIÓN DE DERECHOS DE IMAGEN
+Shoot Date: {{FECHA}}  |  Photographer/Filmmaker: {{FOTOGRAFO}}
+Description of Shoot: {{PROYECTO}}  |  Location of Shoot: {{LUGAR}}
+
+Por buena y valiosa contraprestación ({{COMPENSACION}}) que reconozco haber recibido, y al firmar esta autorización, otorgo lo siguiente:
+
+1. Otorgo de manera irrevocable al Fotógrafo/Realizador y a sus licenciatarios, sucesores y cesionarios ("Photographer/Filmmaker") el derecho a licenciar y utilizar las fotografías fijas o en movimiento o películas tomadas de mí, incluyendo mi voz, imagen, retrato y semejanza (las "Imágenes") en cualquier medio y para cualquier uso ({{USO}}), excepto ilegal o pornográfico, incluyendo sin limitación arte, stock, publicidad, comercio y promoción, a perpetuidad. Los usos pueden incluir temas sensibles o controvertidos. Si recibo alguna copia impresa o archivo digital, lo utilizaré únicamente para uso personal y no autorizaré a terceros a usarlo. Reconozco que todos los derechos de autor sobre las Imágenes pertenecen al Fotógrafo/Realizador.
+
+2. Acepto que ningún anuncio, producto u otro material deberá serme sometido para aprobación posterior y que el Fotógrafo/Realizador estará libre de responsabilidad por cualquier distorsión, efecto ilusorio o resultado derivado de la publicación o distribución de las Imágenes. Acepto que las Imágenes puedan combinarse con otro material, recortarse, alterarse o modificarse, y consiento el uso de mi nombre o un nombre ficticio y descriptores étnicos.
+
+3. Entiendo que mi información personal no se hará pública, pero podrá utilizarse y conservarse según sea necesario en relación directa con el licenciamiento de las Imágenes, incluyendo ser compartida con licenciatarios/cesionarios del Fotógrafo/Realizador en otros países.
+
+4. Libero, descargo y acepto mantener indemne al Fotógrafo/Realizador y sus partes liberadas ("Released Parties") de cualquier responsabilidad derivada del uso de las Imágenes, incluyendo reclamaciones por difamación o invasión de privacidad o publicidad, así como uso no autorizado o piratería por terceros.
+
+5. Garantizo que soy mayor de edad (o cuento con firma de padre/tutor legal adjunta) y tengo pleno derecho para contratar en mi propio nombre; que he leído esta autorización antes de su ejecución y comprendo su contenido. Este acuerdo obliga a mis herederos, sucesores y cesionarios.
+
+6. Actúo como contratista independiente y no soy elegible para seguros u otros beneficios, liberando al Fotógrafo/Realizador de toda responsabilidad por cualquier lesión física derivada de la sesión.`,
+
+            bi: `MODEL RELEASE (OFFICIAL ENGLISH / STOCK STANDARD)
+Shoot Date: {{FECHA}}  |  Photographer/Filmmaker: {{FOTOGRAFO}}
+Description of Shoot: {{PROYECTO}}  |  Location of Shoot: {{LUGAR}}
+
+For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received, and by signing this release I grant as follows:
+
+1. I irrevocably grant to Photographer/Filmmaker and its licensees, successors, and assigns ("Photographer/Filmmaker") the right to license and use the still or motion photographs or film taken of me including my voice, picture, portrait and likeness (the "Images") in any and all media and for any use whatsoever (except illegal or pornographic), including without limitation, art, stock, advertising, trade and promotion ({{USO}}), in perpetuity. Uses may include subjects that may be controversial or sensitive including but not limited to adverse medical conditions, mental health, substance abuse, political or religious affiliation, smoking or alcohol usage. If I should receive any print, negative, digital file, film or other copy, I shall only use it for my own personal use and shall not authorize anyone else to use it. I agree and acknowledge that all rights to the Images are owned by "Photographer/Filmmaker" including the right to copyright the Images.
+
+2. I agree that no advertisement, product or other material need be submitted to me for any further approval and the Photographer/Filmmaker shall be without liability to me for any distortion or illusionary effect or adverse result to me on account of the publication, distribution or broadcast of the Images. I agree that the Images may be combined with other material and may be cropped, altered or modified. I consent to the use of my name or a fictitious name, and consent to the publication of any of the ethnicities indicated below, understanding other ethnicities may be associated with the Images for descriptive purposes.
+
+3. I understand that my personal information will not be made publicly available but may be used as required or necessary directly in relation to the licensing of the Images and may be retained as long as necessary to fulfill this purpose, including by being shared with licensees / assignees and transferred to countries with differing data protection laws.
+
+4. I release, discharge and agree to hold harmless the Photographer/Filmmaker and his/her licensees, sub-licensees, successors, and assigns ("Released Parties") from any liability arising out of or in connection with the use of the Images, including any and all claims for defamation and/or invasion of privacy or publicity. I acknowledge that the Released Parties are not responsible or liable for any unauthorized use or piracy of the Images.
+
+5. I warrant that I am of full age and have every right to contract in my own name in the above regard; that I have read the above authorization, release and agreement, prior to its execution; and that I am fully familiar with the contents. This agreement shall be binding upon me, my heirs, successors, and assigns.
+
+6. I am an independent contractor and am not eligible for insurance or other benefits. I am solely responsible for my own taxes, insurance, benefits and costs and release Photographer/Filmmaker from any, and all, liability for any physical injury arising from the Shoot.`
+        };
+
+        // Estado en Memoria
+        let contractsList = [];
+        let currentFilter = 'all';
+        let activeContract = null;
+        let compressedIdPhoto = null;
+        // Estado del Canvas de Firma Modelo
+        let canvas = null;
+        let ctx = null;
+        let isDrawing = false;
+        let hasSigned = false;
+
+        // =====================================================================
+        // INICIALIZACIÓN INMEDIATA AL CARGAR EL DOM
+        // =====================================================================
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            loadContractsFromStorage();
+            setupSignatureCanvas();
+
+            const urlContract = extractContractFromURL();
+            if (urlContract) {
+                openSigningViewWithContract(urlContract);
+            } else {
+                updateStats();
+                renderContractsList();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (!document.getElementById('signing-view').classList.contains('hidden')) {
+                resizeSignatureCanvas();
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            if (!document.getElementById('signing-view').classList.contains('hidden')) {
+                resizeSignatureCanvas();
+                if (document.getElementById('toggle-witness').checked) {
+                    resizeWitnessCanvas();
+                }
+            }
+        });
+
+        function initTheme() {
+            const saved = localStorage.getItem(THEME_KEY);
+            if (saved === 'dark' || (!saved && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        }
+
+        function toggleTheme() {
+            const isDark = document.documentElement.classList.toggle('dark');
+            localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
+        }
+
+        // =====================================================================
+        // CODIFICACIÓN / DECODIFICACIÓN DE CONTRATO EN URL (UTF-8 SAFE BASE64)
+        // =====================================================================
+        function encodePayloadToBase64(obj) {
+            const jsonStr = JSON.stringify(obj);
+            const bytes = new TextEncoder().encode(jsonStr);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        }
+
+        function decodePayloadFromBase64(b64) {
+            try {
+                let standardB64 = b64.replace(/-/g, '+').replace(/_/g, '/');
+                while (standardB64.length % 4) standardB64 += '=';
+                const binary = atob(standardB64);
+                const bytes = new Uint8Array(binary.length);
+                for (let i = 0; i < binary.length; i++) {
+                    bytes[i] = binary.charCodeAt(i);
+                }
+                const jsonStr = new TextDecoder().decode(bytes);
+                return JSON.parse(jsonStr);
+            } catch (e) {
+                console.error('Error decodificando payload de URL:', e);
+                return null;
+            }
+        }
+
+        function buildShareableURL(contract) {
+            const minimalPayload = {
+                id: contract.id,
+                no: contract.releaseNo || 1,
+                p: contract.projectName,
+                d: contract.shootDate,
+                l: contract.location,
+                u: contract.usageType,
+                m: contract.modelPrefill || '',
+                c: contract.compensation,
+                ph: contract.photographerName || PHOTOGRAPHER_BRAND,
+                t: contract.contractTemplate
+            };
+            const encoded = encodePayloadToBase64(minimalPayload);
+            const baseUrl = window.location.href.split('?')[0].split('#')[0];
+            return `${baseUrl}?c=${encoded}`;
+        }
+
+        function extractContractFromURL() {
+            const searchParams = new URLSearchParams(window.location.search);
+            const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, '?'));
+            const encoded = searchParams.get('c') || hashParams.get('c');
+            const localId = searchParams.get('id') || hashParams.get('id');
+
+            if (encoded) {
+                const raw = decodePayloadFromBase64(encoded);
+                if (raw && raw.id) {
+                    const existing = contractsList.find(item => item.id === raw.id);
+                    if (existing && existing.status === 'signed') {
+                        return existing;
+                    }
+                    return {
+                        id: raw.id,
+                        releaseNo: raw.no || 1,
+                        projectName: raw.p,
+                        shootDate: raw.d,
+                        location: raw.l,
+                        usageType: raw.u,
+                        modelPrefill: raw.m || '',
+                        compensation: raw.c,
+                        photographerName: raw.ph || PHOTOGRAPHER_BRAND,
+                        contractTemplate: raw.t,
+                        status: existing ? existing.status : 'pending'
+                    };
+                }
+            }
+
+            if (localId) {
+                return contractsList.find(item => item.id === localId) || null;
+            }
+
+            return null;
+        }
+
+        // =====================================================================
+        // PERSISTENCIA EN LOCALSTORAGE + RESPALDO JSON
+        // =====================================================================
+        function loadContractsFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                contractsList = raw ? JSON.parse(raw) : [];
+            } catch (e) {
+                contractsList = [];
+            }
+        }
+
+        function saveContractsToStorage() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(contractsList));
+            } catch (e) {
+                showToast('Espacio local lleno. Exporta un respaldo JSON y elimina contratos antiguos.', 'error');
+            }
+        }
+
+        function openBackupModal() {
+            const body = document.getElementById('modal-body');
+            const actions = document.getElementById('modal-actions');
+            document.getElementById('modal-title').textContent = 'Respaldo de Base de Datos Local';
+
+            body.innerHTML = `
+                <p>Tus contratos de <strong>Braiton Saldaña</strong> se guardan automáticamente en este dispositivo. Puedes descargar una copia de seguridad en formato JSON o restaurar un archivo previo.</p>
+                <div class="pt-2 space-y-3">
+                    <button type="button" onclick="exportContractsJSON()" class="w-full py-2.5 px-4 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-xs flex items-center justify-center gap-2 hover:opacity-90 transition">
+                        <span>Descargar Respaldo JSON (${contractsList.length} contratos)</span>
+                    </button>
+                    <label class="w-full py-2.5 px-4 rounded-xl bg-zinc-100 dark:bg-studio-800 border border-dashed border-zinc-300 dark:border-studio-700 font-medium text-xs flex items-center justify-center gap-2 cursor-pointer hover:opacity-90 transition">
+                        <span>Importar Archivo JSON de Respaldo</span>
+                        <input type="file" accept=".json,application/json" onchange="importContractsJSON(event)" class="hidden">
+                    </label>
+                </div>
+            `;
+            actions.innerHTML = `<button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-studio-800 text-xs font-medium">Cerrar</button>`;
+            document.getElementById('custom-modal').classList.remove('hidden');
+            document.getElementById('custom-modal').classList.add('flex');
+        }
+
+        function exportContractsJSON() {
+            const dataStr = JSON.stringify(contractsList, null, 2);
+            const blob = new Blob([dataStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Braiton_Saldana_Contratos_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast('Respaldo JSON descargado.', 'success');
+        }
+
+        function importContractsJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    if (!Array.isArray(imported)) throw new Error('Formato inválido');
+                    // Fusionar sin duplicar IDs
+                    const existingIds = new Set(contractsList.map(c => c.id));
+                    let added = 0;
+                    imported.forEach(item => {
+                        if (item && item.id && !existingIds.has(item.id)) {
+                            contractsList.push(item);
+                            added++;
+                        }
+                    });
+                    contractsList.sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0));
+                    saveContractsToStorage();
+                    updateStats();
+                    renderContractsList();
+                    closeModal();
+                    showToast(`Se importaron ${added} contratos nuevos.`, 'success');
+                } catch (err) {
+                    showToast('El archivo JSON no es válido.', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // =====================================================================
+        // GESTIÓN DEL PANEL DEL FOTÓGRAFO
+        // =====================================================================
+        function switchToAdminView() {
+            try {
+                if (window.location.protocol !== 'blob:' && window.location.protocol !== 'data:') {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
+            } catch (e) {
+                // Ignorar en entornos sandbox o vista previa blob
+            }
+            document.getElementById('signing-view').classList.add('hidden');
+            document.getElementById('btn-back-admin').classList.add('hidden');
+            document.getElementById('admin-view').classList.remove('hidden');
+            updateStats();
+            renderContractsList();
+        }
+
+        function updateStats() {
+            const total = contractsList.length;
+            const pending = contractsList.filter(c => c.status !== 'signed').length;
+            const signed = contractsList.filter(c => c.status === 'signed').length;
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-pending').textContent = pending;
+            document.getElementById('stat-signed').textContent = signed;
+        }
+
+        function setFilter(filter) {
+            currentFilter = filter;
+            ['all', 'pending', 'signed'].forEach(f => {
+                const btn = document.getElementById(`filter-${f}`);
+                if (f === filter) {
+                    btn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 text-white dark:bg-studio-800 transition';
+                } else {
+                    btn.className = 'px-3.5 py-1.5 rounded-lg text-xs font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white transition';
+                }
+            });
+            renderContractsList();
+        }
+
+        function renderContractsList() {
+            const container = document.getElementById('contracts-list');
+            const emptyState = document.getElementById('empty-state');
+            const query = (document.getElementById('search-input').value || '').toLowerCase().trim();
+
+            const filtered = contractsList.filter(c => {
+                if (currentFilter === 'pending' && c.status === 'signed') return false;
+                if (currentFilter === 'signed' && c.status !== 'signed') return false;
+                if (query) {
+                    const modelName = (c.modelData?.fullName || c.modelPrefill || '').toLowerCase();
+                    const proj = (c.projectName || '').toLowerCase();
+                    const loc = (c.location || '').toLowerCase();
+                    return modelName.includes(query) || proj.includes(query) || loc.includes(query);
+                }
+                return true;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+            container.innerHTML = filtered.map(c => {
+                const isSigned = c.status === 'signed';
+                const modelDisplay = isSigned
+                    ? escapeHTML(c.modelData.fullName)
+                    : (c.modelPrefill ? escapeHTML(c.modelPrefill) : '<span class="italic text-zinc-400">Pendiente de datos del modelo</span>');
+
+                const badgeHTML = isSigned
+                    ? `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">● Firmado</span>`
+                    : `<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-mono bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">● Pendiente</span>`;
+                const relNumBadge = `<span class="text-xs font-mono px-2 py-0.5 rounded bg-zinc-100 dark:bg-studio-800 text-zinc-600 dark:text-zinc-300">Release No. ${c.releaseNo || 1}</span>`;
+                const actionsHTML = isSigned
+                    ? `
+                        <button type="button" onclick="downloadContractPDF('${c.id}')" class="px-3.5 py-2 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-xs hover:opacity-90 transition flex items-center gap-1.5">
+                            <span>Descargar PDF</span>
+                        </button>
+                        <button type="button" onclick="openSignOnSet('${c.id}')" class="px-3 py-2 rounded-xl bg-zinc-100 dark:bg-studio-800 hover:opacity-80 text-xs font-medium transition">
+                            Ver Certificado
+                        </button>
+                      `
+                    : `
+                        <button type="button" onclick="shareWhatsApp('${c.id}')" class="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs transition flex items-center gap-1.5">
+                            <span>WhatsApp</span>
+                        </button>
+                        <button type="button" onclick="copyShareLink('${c.id}')" class="px-3.5 py-2 rounded-xl bg-zinc-100 dark:bg-studio-800 hover:opacity-80 text-xs font-medium transition">
+                            Copiar Enlace
+                        </button>
+                        <button type="button" onclick="openSignOnSet('${c.id}')" class="px-3.5 py-2 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-xs hover:opacity-90 transition">
+                            Firmar en Set
+                        </button>
+                      `;
+
+                return `
+                    <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:border-zinc-400 dark:hover:border-studio-700 transition">
+                        <div class="space-y-1.5">
+                            <div class="flex flex-wrap items-center gap-2.5">
+                                ${badgeHTML}
+                                ${relNumBadge}
+                                <span class="text-xs text-zinc-400">• ${escapeHTML(c.shootDate)}</span>
+                            </div>
+                            <h3 class="text-base sm:text-lg font-semibold">${escapeHTML(c.projectName)}</h3>
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                                <span>Modelo: <strong class="text-zinc-800 dark:text-zinc-200 font-medium">${modelDisplay}</strong></span>
+                                <span>Locación: ${escapeHTML(c.location)}</span>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 pt-2 lg:pt-0 border-t lg:border-t-0 border-zinc-100 dark:border-studio-800">
+                            ${actionsHTML}
+                            <button type="button" onclick="confirmDeleteContract('${c.id}')" title="Eliminar contrato" class="p-2 rounded-xl text-zinc-400 hover:text-red-500 hover:bg-red-500/10 transition ml-auto lg:ml-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // =====================================================================
+        // CREACIÓN DE NUEVOS CONTRATOS
+        // =====================================================================
+        function openNewContractModal() {
+            document.getElementById('inp-date').value = new Date().toISOString().split('T')[0];
+            setTemplateLang('bi');
+            document.getElementById('new-contract-modal').classList.remove('hidden');
+            document.getElementById('new-contract-modal').classList.add('flex');
+        }
+
+        function closeNewContractModal() {
+            document.getElementById('new-contract-modal').classList.add('hidden');
+            document.getElementById('new-contract-modal').classList.remove('flex');
+        }
+
+        function setTemplateLang(lang) {
+            document.getElementById('inp-terms').value = TEMPLATES[lang];
+            const btnEs = document.getElementById('btn-tpl-es');
+            const btnBi = document.getElementById('btn-tpl-bi');
+            if (lang === 'es') {
+                btnEs.className = 'text-xs px-3 py-1 rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-medium transition';
+                btnBi.className = 'text-xs px-3 py-1 rounded-lg bg-zinc-100 dark:bg-studio-800 text-zinc-700 dark:text-zinc-300 font-medium transition';
+            } else {
+                btnBi.className = 'text-xs px-3 py-1 rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-medium transition';
+                btnEs.className = 'text-xs px-3 py-1 rounded-lg bg-zinc-100 dark:bg-studio-800 text-zinc-700 dark:text-zinc-300 font-medium transition';
+            }
+        }
+
+        function handleCreateContract(e) {
+            e.preventDefault();
+            const id = 'bs_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 6);
+            const nextReleaseNo = contractsList.reduce((max, item) => Math.max(max, Number(item.releaseNo) || 0), 0) + 1;
+            const newContract = {
+                id,
+                releaseNo: nextReleaseNo,
+                projectName: document.getElementById('inp-project').value.trim(),
+                shootDate: document.getElementById('inp-date').value,
+                location: document.getElementById('inp-location').value.trim(),
+                usageType: document.getElementById('inp-usage').value,
+                modelPrefill: document.getElementById('inp-model-prefill').value.trim(),
+                compensation: document.getElementById('inp-compensation').value.trim(),
+                photographerName: PHOTOGRAPHER_BRAND,
+                contractTemplate: document.getElementById('inp-terms').value,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
+            contractsList.unshift(newContract);
+            saveContractsToStorage();
+            updateStats();
+            renderContractsList();
+            closeNewContractModal();
+            document.getElementById('new-contract-form').reset();
+            showToast(`Model Release No. ${nextReleaseNo} creado.`, 'success');
+        }
+
+        function copyShareLink(contractId) {
+            const contract = contractsList.find(c => c.id === contractId);
+            if (!contract) return;
+            const shareUrl = buildShareableURL(contract);
+
+            // Uso de textarea temporal + execCommand('copy') para compatibilidad total en iframes y móviles
+            const tempInput = document.createElement('textarea');
+            tempInput.value = shareUrl;
+            tempInput.style.position = 'fixed';
+            tempInput.style.opacity = '0';
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            try {
+                document.execCommand('copy');
+                showToast('Enlace único copiado al portapapeles.', 'success');
+            } catch (err) {
+                showToast('No se pudo copiar automáticamente.', 'error');
+            }
+            document.body.removeChild(tempInput);
+        }
+
+        function shareWhatsApp(contractId) {
+            const contract = contractsList.find(c => c.id === contractId);
+            if (!contract) return;
+            const shareUrl = buildShareableURL(contract);
+            const greeting = contract.modelPrefill ? `Hola ${contract.modelPrefill},` : 'Hola,';
+            const message = `${greeting} te comparto el enlace de *Braiton Saldaña* para revisar y firmar digitalmente el acuerdo de cesión de derechos de imagen de nuestra sesión *"${contract.projectName}"*:\n\n${shareUrl}`;
+            window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+        }
+
+        function openSignOnSet(contractId) {
+            const contract = contractsList.find(c => c.id === contractId);
+            if (!contract) return;
+            openSigningViewWithContract(contract);
+        }
+
+        function confirmDeleteContract(contractId) {
+            document.getElementById('modal-title').textContent = 'Eliminar Contrato';
+            document.getElementById('modal-body').innerHTML = `<p>¿Deseas eliminar este contrato del archivo local? Esta acción no se puede deshacer.</p>`;
+            document.getElementById('modal-actions').innerHTML = `
+                <button type="button" onclick="closeModal()" class="px-4 py-2 rounded-xl bg-zinc-100 dark:bg-studio-800 text-xs font-medium">Cancelar</button>
+                <button type="button" onclick="executeDeleteContract('${contractId}')" class="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-semibold">Eliminar</button>
+            `;
+            document.getElementById('custom-modal').classList.remove('hidden');
+            document.getElementById('custom-modal').classList.add('flex');
+        }
+
+        function executeDeleteContract(contractId) {
+            contractsList = contractsList.filter(c => c.id !== contractId);
+            saveContractsToStorage();
+            updateStats();
+            renderContractsList();
+            closeModal();
+            showToast('Contrato eliminado.', 'info');
+        }
+
+        // =====================================================================
+        // VISTA DE FIRMA PARA EL MODELO
+        // =====================================================================
+        function openSigningViewWithContract(contract) {
+            activeContract = contract;
+            document.getElementById('admin-view').classList.add('hidden');
+            document.getElementById('signing-view').classList.remove('hidden');
+            document.getElementById('btn-back-admin').classList.remove('hidden');
+
+            if (contract.status === 'signed') {
+                renderSignedReceipt(contract);
+            } else {
+                renderSigningForm(contract);
+            }
+        }
+
+        function interpolateContractText(contract, modelName) {
+            const displayModel = modelName && modelName.trim() ? modelName.trim() : '[MODEL\'S NAME]';
+            return contract.contractTemplate
+                .replace(/\{\{FOTOGRAFO\}\}/g, contract.photographerName || PHOTOGRAPHER_BRAND)
+                .replace(/\{\{MODELO\}\}/g, displayModel)
+                .replace(/\{\{PROYECTO\}\}/g, contract.projectName || '')
+                .replace(/\{\{FECHA\}\}/g, contract.shootDate)
+                .replace(/\{\{LUGAR\}\}/g, contract.location)
+                .replace(/\{\{USO\}\}/g, contract.usageType)
+                .replace(/\{\{COMPENSACION\}\}/g, contract.compensation);
+        }
+
+        function renderSigningForm(contract) {
+            document.getElementById('signed-success-banner').classList.add('hidden');
+            document.getElementById('signing-form-container').classList.remove('hidden');
+
+            document.getElementById('sign-contract-id').textContent = `MODEL RELEASE NO.: ${contract.releaseNo || 1}`;
+            document.getElementById('sign-project-title').textContent = contract.projectName;
+            document.getElementById('sign-photographer').textContent = contract.photographerName || PHOTOGRAPHER_BRAND;
+            document.getElementById('sign-date').textContent = contract.shootDate;
+            document.getElementById('sign-location').textContent = contract.location;
+
+            const prefillInput = document.getElementById('mod-fullname');
+            prefillInput.value = contract.modelPrefill || '';
+            document.getElementById('sign-contract-body').textContent = interpolateContractText(contract, prefillInput.value);
+
+            compressedIdPhoto = null;
+            document.getElementById('id-photo-preview').classList.add('hidden');
+            document.getElementById('id-photo-status').textContent = 'Se colocará en la esquina superior del PDF oficial tal como en tu plantilla.';
+            document.getElementById('minor-guardian-section').classList.add('hidden');
+
+            setTimeout(() => {
+                resizeSignatureCanvas();
+                clearSignaturePad();
+            }, 50);
+        }
+
+        function checkMinorStatus() {
+            const dobVal = document.getElementById('mod-dob').value;
+            const minorBox = document.getElementById('minor-guardian-section');
+            const guardianInput = document.getElementById('guardian-name');
+            if (!dobVal) return;
+
+            const dob = new Date(dobVal);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) {
+                age--;
+            }
+
+            if (age < 18) {
+                minorBox.classList.remove('hidden');
+                guardianInput.required = true;
+            } else {
+                minorBox.classList.add('hidden');
+                guardianInput.required = false;
+            }
+        }
+
+        function updateLiveContractPreview() {
+            if (!activeContract) return;
+            const currentName = document.getElementById('mod-fullname').value;
+            document.getElementById('sign-contract-body').textContent = interpolateContractText(activeContract, currentName);
+        }
+
+        function handleIdPhotoUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    const maxDim = 600;
+                    let w = img.width;
+                    let h = img.height;
+                    if (w > maxDim || h > maxDim) {
+                        if (w > h) {
+                            h = Math.round((h * maxDim) / w);
+                            w = maxDim;
+                        } else {
+                            w = Math.round((w * maxDim) / h);
+                            h = maxDim;
+                        }
+                    }
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = w;
+                    tempCanvas.height = h;
+                    const tCtx = tempCanvas.getContext('2d');
+                    tCtx.drawImage(img, 0, 0, w, h);
+
+                    compressedIdPhoto = tempCanvas.toDataURL('image/jpeg', 0.72);
+                    const previewEl = document.getElementById('id-photo-preview');
+                    previewEl.src = compressedIdPhoto;
+                    previewEl.classList.remove('hidden');
+                    document.getElementById('id-photo-status').textContent = `Foto adjuntada (${file.name})`;
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // =====================================================================
+        // CANVAS DE FIRMA DIGITAL (RATÓN Y TÁCTIL)
+        // =====================================================================
+        function setupSignatureCanvas() {
+            canvas = document.getElementById('signature-canvas');
+            if (!canvas) return;
+            ctx = canvas.getContext('2d');
+
+            const getCoords = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                return { x: clientX - rect.left, y: clientY - rect.top };
+            };
+
+            const startDraw = (e) => {
+                isDrawing = true;
+                hasSigned = true;
+                const pos = getCoords(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+            };
+
+            const draw = (e) => {
+                if (!isDrawing) return;
+                if (e.cancelable) e.preventDefault();
+                const pos = getCoords(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+            };
+
+            const endDraw = () => {
+                isDrawing = false;
+            };
+
+            canvas.addEventListener('mousedown', startDraw);
+            canvas.addEventListener('mousemove', draw);
+            window.addEventListener('mouseup', endDraw);
+
+            canvas.addEventListener('touchstart', startDraw, { passive: false });
+            canvas.addEventListener('touchmove', draw, { passive: false });
+            canvas.addEventListener('touchend', endDraw);
+        }
+
+        function resizeSignatureCanvas() {
+            if (!canvas || !ctx) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            canvas.width = rect.width * dpr;
+            canvas.height = rect.height * dpr;
+            ctx.scale(dpr, dpr);
+            ctx.strokeStyle = '#09090b';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            hasSigned = false;
+        }
+
+        function clearSignaturePad() {
+            if (!canvas || !ctx) return;
+            const rect = canvas.parentElement.getBoundingClientRect();
+            ctx.clearRect(0, 0, rect.width, rect.height);
+            hasSigned = false;
+        }
+
+        // =====================================================================
+        // PROCESO DE FIRMA, SELLO SHA-256 Y RECIBO CERTIFICADO
+        // =====================================================================
+        async function computeSHA256(message) {
+            if (window.crypto && window.crypto.subtle) {
+                const msgBuffer = new TextEncoder().encode(message);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+            }
+            // Fallback determinístico si se ejecuta en contexto sin crypto.subtle
+            let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+            for (let i = 0; i < message.length; i++) {
+                const ch = message.charCodeAt(i);
+                h1 = Math.imul(h1 ^ ch, 2654435761);
+                h2 = Math.imul(h2 ^ ch, 1597334677);
+            }
+            return (h1 >>> 0).toString(16).padStart(8, '0') + (h2 >>> 0).toString(16).padStart(8, '0');
+        }
+
+        async function handleModelSignSubmit(e) {
+            e.preventDefault();
+            if (!activeContract) return;
+
+            if (!hasSigned) {
+                showToast('Por favor traza tu firma en el recuadro antes de finalizar.', 'error');
+                return;
+            }
+
+            const btn = document.getElementById('btn-finalize-sign');
+            btn.disabled = true;
+
+            try {
+                const fullName = document.getElementById('mod-fullname').value.trim();
+                const idNumber = document.getElementById('mod-idnumber').value.trim();
+                const dob = document.getElementById('mod-dob').value;
+                const gender = document.getElementById('mod-gender').value;
+                const email = document.getElementById('mod-email').value.trim();
+                const phone = document.getElementById('mod-phone').value.trim();
+                const address = document.getElementById('mod-address').value.trim();
+                const cityState = document.getElementById('mod-citystate').value.trim();
+                const country = document.getElementById('mod-country').value.trim();
+                const zipCode = document.getElementById('mod-zip').value.trim();
+
+                const guardianName = document.getElementById('guardian-name').value.trim();
+                const guardianAddress = document.getElementById('guardian-address').value.trim();
+
+                const selectedEthnicities = Array.from(document.querySelectorAll('input[name="ethnicity"]:checked')).map(el => el.value);
+
+                const finalContractText = interpolateContractText(activeContract, fullName);
+                const signatureDataUrl = canvas.toDataURL('image/png');
+                const timestampUTC = new Date().toISOString();
+                const dateSignedFormatted = timestampUTC.split('T')[0];
+
+                const auditPayload = `${activeContract.id}|${PHOTOGRAPHER_BRAND}|${fullName}|${idNumber}|${timestampUTC}|${finalContractText}`;
+                const sha256Hash = await computeSHA256(auditPayload);
+
+                const signedContract = {
+                    ...activeContract,
+                    status: 'signed',
+                    finalContractText,
+                    dateSignedFormatted,
+                    modelData: {
+                        fullName,
+                        idNumber,
+                        dob,
+                        gender,
+                        email,
+                        phone,
+                        address,
+                        cityState,
+                        country,
+                        zipCode,
+                        guardianName: guardianName || null,
+                        guardianAddress: guardianAddress || null,
+                        ethnicities: selectedEthnicities,
+                        idPhotoDataUrl: compressedIdPhoto || null
+                    },
+                    signatureDataUrl,
+                    auditTrail: {
+                        timestampUTC,
+                        userAgent: navigator.userAgent,
+                        sha256Hash
+                    },
+                    signedAt: timestampUTC
+                };
+
+                const idx = contractsList.findIndex(c => c.id === signedContract.id);
+                if (idx >= 0) {
+                    contractsList[idx] = signedContract;
+                } else {
+                    contractsList.unshift(signedContract);
+                }
+                saveContractsToStorage();
+                activeContract = signedContract;
+
+                renderSignedReceipt(signedContract);
+                showToast('Model Release firmado y sellado correctamente.', 'success');
+            } catch (err) {
+                console.error('Error al procesar firma:', err);
+                showToast('Ocurrió un error al sellar el documento.', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        function renderSignedReceipt(contract) {
+            document.getElementById('signing-form-container').classList.add('hidden');
+            document.getElementById('signed-success-banner').classList.remove('hidden');
+
+            document.getElementById('receipt-model').textContent = contract.modelData?.fullName || '---';
+            document.getElementById('receipt-date').textContent = contract.auditTrail?.timestampUTC || contract.signedAt || '---';
+            document.getElementById('receipt-hash').textContent = contract.auditTrail?.sha256Hash || '---';
+
+            const dlBtn = document.getElementById('btn-download-signed-pdf');
+            dlBtn.onclick = () => generatePDF(contract);
+
+            preparePrintFallbackSheet(contract);
+        }
+
+        function downloadContractPDF(contractId) {
+            const contract = contractsList.find(c => c.id === contractId);
+            if (!contract) return;
+            generatePDF(contract);
+        }
+
+        function generatePDF(contract) {
+            // Preparar siempre la hoja de respaldo por si jsPDF no cargó o el usuario desea imprimir
+            preparePrintFallbackSheet(contract);
+
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                showToast('Abriendo vista de impresión directa...', 'info');
+                window.print();
+                return;
+            }
+
+            try {
+                const { jsPDF } = window.jspdf;
+                const docPdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                const pageWidth = docPdf.internal.pageSize.getWidth();
+                const margin = 15;
+                const contentWidth = pageWidth - margin * 2;
+                const m = contract.modelData || {};
+                let y = 15;
+
+                // Encabezado estilo model-release.pdf (Foto a la izquierda si existe + Bloque derecho con datos)
+                let headerTextX = margin;
+                if (m.idPhotoDataUrl) {
+                    docPdf.setDrawColor(180, 180, 185);
+                    docPdf.rect(margin, y, 32, 42);
+                    docPdf.addImage(m.idPhotoDataUrl, 'JPEG', margin + 0.5, y + 0.5, 31, 41);
+                    headerTextX = margin + 37;
+                }
+
+                docPdf.setTextColor(15, 15, 20);
+                docPdf.setFont('helvetica', 'bold');
+                docPdf.setFontSize(15);
+                docPdf.text('MODEL RELEASE', headerTextX, y + 6);
+
+                docPdf.setFont('helvetica', 'normal');
+                docPdf.setFontSize(9);
+                docPdf.setTextColor(40, 40, 45);
+                docPdf.text(`Shoot Date: ${contract.shootDate}     |     Model Release No.: ${contract.releaseNo || 1}`, headerTextX, y + 13);
+                docPdf.text(`Photographer/Filmmaker: ${contract.photographerName || PHOTOGRAPHER_BRAND}`, headerTextX, y + 19);
+                docPdf.setFont('helvetica', 'italic');
+                docPdf.text(`Signature: ${PHOTOGRAPHER_SIGN}`, headerTextX, y + 25);
+                docPdf.setFont('helvetica', 'normal');
+                docPdf.text(`Description of Shoot: ${contract.projectName}`, headerTextX, y + 31);
+                docPdf.text(`Location of Shoot (City/State): ${contract.location}`, headerTextX, y + 37);
+
+                y = m.idPhotoDataUrl ? 63 : 56;
+                docPdf.setDrawColor(200, 200, 205);
+                docPdf.line(margin, y, pageWidth - margin, y);
+                y += 5;
+
+                // Cláusulas Legales (1 a 6)
+                const legalText = contract.finalContractText || interpolateContractText(contract, m.fullName);
+                docPdf.setFont('helvetica', 'normal');
+                docPdf.setFontSize(7.8);
+                docPdf.setTextColor(30, 30, 35);
+                const splitLines = docPdf.splitTextToSize(legalText, contentWidth);
+
+                splitLines.forEach(line => {
+                    if (y > 275) {
+                        docPdf.addPage();
+                        y = 16;
+                    }
+                    docPdf.text(line, margin, y);
+                    y += 3.6;
+                });
+
+                y += 4;
+                if (y > 205) {
+                    docPdf.addPage();
+                    y = 16;
+                }
+
+                // Sección Model Information (Sin apartado de testigo)
+                docPdf.setDrawColor(200, 200, 205);
+                docPdf.line(margin, y, pageWidth - margin, y);
+                y += 5;
+                docPdf.setFont('helvetica', 'bold');
+                docPdf.setFontSize(9.5);
+                docPdf.text('Model Information:', margin, y);
+                docPdf.setFont('helvetica', 'normal');
+                docPdf.setFontSize(8.5);
+                docPdf.text(`Date Signed: ${contract.dateSignedFormatted || (contract.signedAt || '').split('T')[0]}`, margin + 105, y);
+                y += 6;
+
+                docPdf.setFont('helvetica', 'normal');
+                docPdf.setFontSize(8.5);
+                docPdf.text(`Model's Name: ${m.fullName || '---'}`, margin, y);
+
+                // Recuadro de Firma del Modelo a la derecha
+                docPdf.setDrawColor(170, 170, 175);
+                docPdf.rect(margin + 105, y - 4, 75, 22);
+                if (contract.signatureDataUrl) {
+                    docPdf.addImage(contract.signatureDataUrl, 'PNG', margin + 107, y - 3, 71, 20);
+                }
+                docPdf.setFontSize(7);
+                docPdf.text("Model's Signature", margin + 105, y + 21);
+
+                y += 5.5;
+                docPdf.setFontSize(8.5);
+                docPdf.text(`Date of Birth: ${m.dob || '---'}   Gender: ${m.gender || '---'}`, margin, y);
+                y += 5.5;
+                docPdf.text(`CURP / INE No.: ${m.idNumber || '---'}`, margin, y);
+                y += 5.5;
+                docPdf.text(`Model's Address: ${m.address || '---'}`, margin, y);
+                y += 5.5;
+                docPdf.text(`City/State: ${m.cityState || '---'}   Country: ${m.country || '---'}   Zip: ${m.zipCode || '---'}`, margin, y);
+                y += 5.5;
+                docPdf.text(`Model's Phone: ${m.phone || '---'}   Model's E-Mail: ${m.email || '---'}`, margin, y);
+                y += 7;
+
+                // Bloque Padre o Tutor Legal si aplica
+                if (m.guardianName) {
+                    docPdf.setFillColor(248, 246, 240);
+                    docPdf.rect(margin, y, contentWidth, 14, 'F');
+                    docPdf.setFont('helvetica', 'bold');
+                    docPdf.setFontSize(8);
+                    docPdf.text('Parent or Legal Guardian (Model under 18):', margin + 3, y + 5);
+                    docPdf.setFont('helvetica', 'normal');
+                    docPdf.text(`Name: ${m.guardianName}   |   Address: ${m.guardianAddress || 'Same as model'}`, margin + 3, y + 10.5);
+                    y += 17;
+                }
+
+                // Información Étnica Opcional
+                const ethText = (m.ethnicities && m.ethnicities.length > 0) ? m.ethnicities.join(', ') : 'Not specified';
+                docPdf.setFontSize(7.5);
+                docPdf.setTextColor(70, 70, 75);
+                docPdf.text(`Additional Information (Ethnicity - Descriptive Purposes): ${ethText}`, margin, y);
+                y += 6;
+
+                // Certificado Criptográfico de Auditoría
+                if (contract.auditTrail) {
+                    docPdf.setFillColor(242, 242, 245);
+                    docPdf.rect(margin, y, contentWidth, 16, 'F');
+                    docPdf.setFont('courier', 'normal');
+                    docPdf.setFontSize(6.8);
+                    docPdf.setTextColor(60, 60, 70);
+                    docPdf.text(`DIGITAL AUDIT TRAIL | UTC: ${contract.auditTrail.timestampUTC} | ID: ${contract.id.toUpperCase()}`, margin + 3, y + 5.5);
+                    docPdf.text(`SHA-256: ${contract.auditTrail.sha256Hash}`, margin + 3, y + 11.5);
+                }
+
+                const safeFileName = `Model_Release_No_${contract.releaseNo || 1}_${(m.fullName || contract.projectName).replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+                docPdf.save(safeFileName);
+                showToast('PDF oficial generado con el formato de tu guía.', 'success');
+            } catch (err) {
+                console.error('Error generando PDF:', err);
+                showToast('Abriendo vista de impresión de respaldo...', 'info');
+                window.print();
+            }
+        }
+
+        function preparePrintFallbackSheet(contract) {
+            const m = contract.modelData || {};
+            const legalText = contract.finalContractText || interpolateContractText(contract, m.fullName);
+            document.getElementById('print-fallback-sheet').innerHTML = `
+                <div style="font-family: sans-serif; max-width: 750px; margin: 0 auto;">
+                    <h1 style="font-size: 18px; border-bottom: 2px solid #000; padding-bottom: 8px;">BRAITON SALDAÑA — MODEL RELEASE OFICIAL (${contract.id.toUpperCase()})</h1>
+                    <p style="font-size: 12px;"><strong>Proyecto:</strong> ${escapeHTML(contract.projectName)} | <strong>Fecha:</strong> ${escapeHTML(contract.shootDate)} | <strong>Locación:</strong> ${escapeHTML(contract.location)}</p>
+                    <div style="white-space: pre-line; font-size: 12px; line-height: 1.5; margin: 16px 0; border: 1px solid #ccc; padding: 12px;">${escapeHTML(legalText)}</div>
+                    <p style="font-size: 12px;"><strong>Modelo:</strong> ${escapeHTML(m.fullName || '')} | <strong>ID:</strong> ${escapeHTML(m.idNumber || '')} | <strong>Email:</strong> ${escapeHTML(m.email || '')} | <strong>Tel:</strong> ${escapeHTML(m.phone || '')}</p>
+                    ${contract.signatureDataUrl ? `<div style="margin-top: 12px;"><img src="${contract.signatureDataUrl}" style="max-height: 90px; border: 1px solid #999;"/><br><small>Firma Digital del Modelo</small></div>` : ''}
+                    ${contract.auditTrail ? `<p style="font-family: monospace; font-size: 10px; margin-top: 16px; background: #f4f4f4; padding: 8px;">UTC: ${contract.auditTrail.timestampUTC}<br>SHA-256: ${contract.auditTrail.sha256Hash}</p>` : ''}
+                </div>
+            `;
+        }
+
+        // =====================================================================
+        // UTILIDADES UI
+        // =====================================================================
+        function closeModal() {
+            document.getElementById('custom-modal').classList.add('hidden');
+            document.getElementById('custom-modal').classList.remove('flex');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const colors = {
+                success: 'bg-emerald-600 text-white border-emerald-500',
+                error: 'bg-red-600 text-white border-red-500',
+                info: 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 border-zinc-700'
+            };
+            toast.className = `pointer-events-auto px-4 py-3 rounded-xl border shadow-xl text-xs font-medium transition-all duration-300 ${colors[type] || colors.info}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3200);
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+    </script>
+</body>
+</html>
