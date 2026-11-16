@@ -10,8 +10,8 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <!-- jsPDF UMD -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Supabase JS Client UMD -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
         tailwind.config = {
@@ -71,10 +71,14 @@
                 <div class="w-9 h-9 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center font-bold text-sm shadow-sm">BS</div>
                 <div>
                     <span class="font-semibold tracking-tight text-sm sm:text-base block leading-none uppercase">Braiton Saldaña</span>
-                    <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tracking-wider uppercase">Model Release Studio</span>
+                    <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tracking-wider uppercase">Model Release Cloud</span>
                 </div>
             </div>
             <div class="flex items-center gap-2 sm:gap-3">
+                <button type="button" id="btn-cloud-status" onclick="openCloudConfigModal()" class="text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 transition flex items-center gap-1.5">
+                    <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span id="cloud-status-text">Configurar Cloud</span>
+                </button>
                 <button type="button" id="btn-back-admin" onclick="switchToAdminView()" class="hidden text-xs font-medium px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 transition flex items-center gap-1.5">
                     <span>← Panel Estudio</span>
                 </button>
@@ -90,10 +94,11 @@
     <main id="admin-view" class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
         <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-200 dark:border-studio-800 pb-6">
             <div>
-                <p class="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-1">Gestión de Contratos</p>
+                <p class="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-1">Gestión Cloud en Tiempo Real</p>
                 <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Archivo de Braiton Saldaña</h1>
             </div>
             <div class="flex flex-wrap items-center gap-2.5">
+                <button type="button" onclick="openCloudConfigModal()" class="px-4 py-2.5 rounded-xl bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 text-xs sm:text-sm font-medium hover:opacity-80 transition">⚙ Configurar Supabase</button>
                 <button type="button" onclick="openBackupModal()" class="px-4 py-2.5 rounded-xl bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 text-xs sm:text-sm font-medium hover:opacity-80 transition">Respaldo JSON</button>
                 <button type="button" onclick="openNewContractModal()" class="px-5 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-xs sm:text-sm hover:opacity-90 transition">+ Nuevo Contrato</button>
             </div>
@@ -129,6 +134,34 @@
         </div>
     </main>
 
+    <!-- Modal Configuración Cloud (Supabase) -->
+    <div id="cloud-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl my-8">
+            <div class="flex items-center justify-between border-b border-zinc-200 dark:border-studio-800 pb-4 mb-5">
+                <h2 class="text-xl font-semibold">Configurar Base de Datos Cloud</h2>
+                <button type="button" onclick="closeCloudConfigModal()" class="text-zinc-400 p-2 rounded-xl bg-zinc-100 dark:bg-studio-800">✕</button>
+            </div>
+            <p class="text-xs text-zinc-500 mb-5 leading-relaxed">
+                Para que las firmas de tus modelos se sincronicen al instante en cualquier dispositivo, conecta una base de datos gratuita de <strong>Supabase</strong>. 
+                Crea una tabla llamada <code class="bg-zinc-100 dark:bg-studio-800 px-1.5 py-0.5 rounded text-amber-600">contracts</code> con columnas: <code class="bg-zinc-100 dark:bg-studio-800 px-1 py-0.5 rounded">id</code> (text, primary key) y <code class="bg-zinc-100 dark:bg-studio-800 px-1 py-0.5 rounded">data</code> (jsonb).
+            </p>
+            <form onsubmit="handleSaveCloudConfig(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Supabase Project URL *</label>
+                    <input type="url" id="inp-supabase-url" placeholder="https://xxxxxx.supabase.co" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Supabase Anon Key *</label>
+                    <input type="password" id="inp-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none font-mono">
+                </div>
+                <div class="flex justify-end gap-3 pt-3 border-t border-zinc-200 dark:border-studio-800">
+                    <button type="button" onclick="disconnectCloud()" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-600 text-xs font-semibold">Desconectar</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Guardar Conexión</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Modal Nuevo Contrato -->
     <div id="new-contract-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
         <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl my-8">
@@ -155,7 +188,7 @@
                 </div>
                 <div class="flex justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-studio-800">
                     <button type="button" onclick="closeNewContractModal()" class="px-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-studio-800 text-sm font-medium">Cancelar</button>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Crear Enlace Corto</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Crear Contrato Cloud</button>
                 </div>
             </form>
         </div>
@@ -166,11 +199,11 @@
         <div id="signed-success-banner" class="hidden bg-white dark:bg-studio-900 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-lg">
             <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-600 mx-auto flex items-center justify-center font-bold text-2xl">✓</div>
             <h2 class="text-2xl font-semibold">Contrato Firmado con Éxito</h2>
-            <p class="text-sm text-zinc-500">Sellado con certificado criptográfico SHA-256 para Braiton Saldaña.</p>
+            <p class="text-sm text-zinc-500">Sellado con certificado criptográfico SHA-256 para Braiton Saldaña y sincronizado en la nube.</p>
             <div class="flex flex-wrap justify-center gap-3 pt-2">
                 <button type="button" id="btn-download-signed-pdf" class="px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Descargar PDF Certificado</button>
                 <button type="button" onclick="window.print()" class="px-5 py-3 rounded-xl bg-zinc-100 dark:bg-studio-800 font-medium text-sm">Imprimir</button>
-                <button type="button" onclick="syncAndReturnToAdmin()" class="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm">Sincronizar con Panel / Volver</button>
+                <button type="button" onclick="switchToAdminView()" class="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm">Volver al Panel</button>
             </div>
         </div>
 
@@ -217,11 +250,12 @@
     </main>
 
     <script>
-        const STORAGE_KEY = 'braiton_saldana_simple_v1';
+        const STORAGE_KEY = 'braiton_saldana_cloud_v1';
         let contractsList = [];
         let currentFilter = 'all';
         let activeContract = null;
         let canvas, ctx, isDrawing = false, hasSigned = false;
+        let supabaseClient = null;
 
         const DEFAULT_TERMS = `MODEL RELEASE — BRAITON SALDAÑA
 Shoot Date: {{FECHA}}  |  Photographer/Filmmaker: {{FOTOGRAFO}}
@@ -241,11 +275,13 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
 6. I am an independent contractor and am not eligible for insurance or other benefits. I am solely responsible for my own taxes, insurance, benefits and costs and release Photographer/Filmmaker from any, and all, liability for any physical injury arising from the Shoot.`;
 
-        window.addEventListener('DOMContentLoaded', () => {
-            loadStorage();
+        window.addEventListener('DOMContentLoaded', async () => {
+            initSupabaseFromStorage();
             setupCanvas();
             document.getElementById('inp-terms').value = DEFAULT_TERMS;
             document.getElementById('inp-date').value = new Date().toISOString().split('T')[0];
+
+            await loadCloudContracts();
 
             const urlParams = new URLSearchParams(window.location.search);
             const contractId = urlParams.get('id');
@@ -255,12 +291,10 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 try {
                     const jsonStr = decodeURIComponent(escape(atob(encodedPayload)));
                     activeContract = JSON.parse(jsonStr);
-                    
-                    const localMatch = contractsList.find(c => c.id === activeContract.id);
-                    if (localMatch && localMatch.status === 'signed') {
-                        activeContract = localMatch;
+                    const cloudMatch = contractsList.find(c => c.id === activeContract.id);
+                    if (cloudMatch && cloudMatch.status === 'signed') {
+                        activeContract = cloudMatch;
                     }
-
                     openSigningView(activeContract, true);
                     return;
                 } catch(e) {
@@ -273,7 +307,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 if (found) {
                     openSigningView(found);
                 } else {
-                    showToast('Contrato no encontrado en este dispositivo.', 'error');
+                    showToast('Contrato no encontrado en la nube.', 'error');
                 }
             } else {
                 updateStats();
@@ -281,11 +315,88 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             }
         });
 
-        function loadStorage() {
-            try { contractsList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { contractsList = []; }
+        function initSupabaseFromStorage() {
+            const config = JSON.parse(localStorage.getItem('supabase_config') || 'null');
+            if (config && config.url && config.key) {
+                try {
+                    supabaseClient = window.supabase.createClient(config.url, config.key);
+                    document.getElementById('cloud-status-dot').className = 'w-2 h-2 rounded-full bg-emerald-500';
+                    document.getElementById('cloud-status-text').textContent = 'Cloud Activo';
+                    document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 transition flex items-center gap-1.5';
+                } catch(e) {
+                    console.error(e);
+                }
+            }
         }
-        function saveStorage() {
+
+        function openCloudConfigModal() {
+            const config = JSON.parse(localStorage.getItem('supabase_config') || '{}');
+            document.getElementById('inp-supabase-url').value = config.url || '';
+            document.getElementById('inp-supabase-key').value = config.key || '';
+            document.getElementById('cloud-modal').classList.remove('hidden');
+            document.getElementById('cloud-modal').classList.add('flex');
+        }
+        function closeCloudConfigModal() {
+            document.getElementById('cloud-modal').classList.add('hidden');
+            document.getElementById('cloud-modal').classList.remove('flex');
+        }
+
+        function handleSaveCloudConfig(e) {
+            e.preventDefault();
+            const url = document.getElementById('inp-supabase-url').value.trim();
+            const key = document.getElementById('inp-supabase-key').value.trim();
+            localStorage.setItem('supabase_config', JSON.stringify({url, key}));
+            closeCloudConfigModal();
+            initSupabaseFromStorage();
+            loadCloudContracts();
+            showToast('Configuración Cloud guardada.', 'success');
+        }
+
+        function disconnectCloud() {
+            localStorage.removeItem('supabase_config');
+            supabaseClient = null;
+            document.getElementById('cloud-status-dot').className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
+            document.getElementById('cloud-status-text').textContent = 'Configurar Cloud';
+            document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 transition flex items-center gap-1.5';
+            closeCloudConfigModal();
+            showToast('Cloud desconectado. Usando almacenamiento local.', 'info');
+        }
+
+        async function loadCloudContracts() {
+            if (supabaseClient) {
+                try {
+                    const { data, error } = await supabaseClient.from('contracts').select('*');
+                    if (!error && data) {
+                        contractsList = data.map(item => item.data);
+                        contractsList.sort((a, b) => b.releaseNo - a.releaseNo);
+                        updateStats();
+                        renderContractsList();
+                        return;
+                    }
+                } catch(e) {
+                    console.error('Error cargando de Supabase', e);
+                }
+            }
+            // Fallback Local
+            try { contractsList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { contractsList = []; }
+            updateStats();
+            renderContractsList();
+        }
+
+        async function saveContractToCloudOrLocal(contractObj) {
+            // Actualizar en lista local
+            const idx = contractsList.findIndex(c => c.id === contractObj.id);
+            if (idx >= 0) contractsList[idx] = contractObj;
+            else contractsList.unshift(contractObj);
             localStorage.setItem(STORAGE_KEY, JSON.stringify(contractsList));
+
+            if (supabaseClient) {
+                try {
+                    await supabaseClient.from('contracts').upsert({ id: contractObj.id, data: contractObj });
+                } catch(e) {
+                    console.error('Error guardando en Supabase', e);
+                }
+            }
         }
 
         function toggleTheme() {
@@ -297,9 +408,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             document.getElementById('signing-view').classList.add('hidden');
             document.getElementById('btn-back-admin').classList.add('hidden');
             document.getElementById('admin-view').classList.remove('hidden');
-            loadStorage();
-            updateStats();
-            renderContractsList();
+            loadCloudContracts();
         }
 
         function updateStats() {
@@ -339,21 +448,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 const isSigned = c.status === 'signed';
                 const modelName = isSigned ? c.modelData.fullName : (c.modelPrefill || 'Pendiente');
                 
-                // Generar enlace compacto autocontenido con payload en base64
-                const payloadObj = {
-                    id: c.id,
-                    releaseNo: c.releaseNo,
-                    projectName: c.projectName,
-                    shootDate: c.shootDate,
-                    location: c.location,
-                    usageType: c.usageType,
-                    compensation: c.compensation,
-                    photographerName: c.photographerName,
-                    contractTemplate: c.contractTemplate,
-                    status: c.status,
-                    modelPrefill: c.modelPrefill
-                };
-                const base64Payload = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObj))));
+                const base64Payload = btoa(unescape(encodeURIComponent(JSON.stringify(c))));
                 const link = `${window.location.href.split('?')[0]}?p=${base64Payload}`;
 
                 return `
@@ -389,7 +484,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             document.getElementById('new-contract-modal').classList.remove('flex');
         }
 
-        function handleCreateContract(e) {
+        async function handleCreateContract(e) {
             e.preventDefault();
             const id = 'bs_' + Math.random().toString(36).substring(2, 6);
             const releaseNo = contractsList.length + 1;
@@ -406,11 +501,11 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 contractTemplate: document.getElementById('inp-terms').value,
                 status: 'pending'
             };
-            contractsList.unshift(newC);
-            saveStorage();
+            await saveContractToCloudOrLocal(newC);
             closeNewContractModal();
             renderContractsList();
-            showToast('Contrato creado con enlace autocontenido.', 'success');
+            updateStats();
+            showToast('Contrato creado y sincronizado.', 'success');
         }
 
         function copyLink(url) {
@@ -420,12 +515,15 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             t.select();
             document.execCommand('copy');
             document.body.removeChild(t);
-            showToast('Enlace copiado al portapapeles. Funciona en cualquier celular.', 'success');
+            showToast('Enlace copiado al portapapeles.', 'success');
         }
 
-        function deleteContract(id) {
+        async function deleteContract(id) {
             contractsList = contractsList.filter(c => c.id !== id);
-            saveStorage();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(contractsList));
+            if (supabaseClient) {
+                try { await supabaseClient.from('contracts').delete().eq('id', id); } catch(e){}
+            }
             renderContractsList();
             updateStats();
             showToast('Contrato eliminado.', 'info');
@@ -533,39 +631,10 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             activeContract.signatureDataUrl = canvas.toDataURL('image/png');
             activeContract.signedAt = new Date().toISOString();
 
-            // Guardar localmente
-            let existingList = [];
-            try { existingList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { existingList = []; }
-            
-            const idx = existingList.findIndex(c => c.id === activeContract.id);
-            if (idx >= 0) {
-                existingList[idx] = activeContract;
-            } else {
-                existingList.unshift(activeContract);
-            }
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(existingList));
-            contractsList = existingList;
-
-            // También guardar en localStorage compartido por ID para sincronizar si se abre en otra pestaña/dispositivo del mismo navegador
-            localStorage.setItem(`signed_sync_${activeContract.id}`, JSON.stringify(activeContract));
+            await saveContractToCloudOrLocal(activeContract);
 
             openSigningView(activeContract, true);
-            showToast('¡Contrato firmado y guardado correctamente!', 'success');
-        }
-
-        function syncAndReturnToAdmin() {
-            // Guardar o actualizar en la lista principal antes de volver
-            let existingList = [];
-            try { existingList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { existingList = []; }
-            const idx = existingList.findIndex(c => c.id === activeContract.id);
-            if (idx >= 0) {
-                existingList[idx] = activeContract;
-            } else {
-                existingList.unshift(activeContract);
-            }
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(existingList));
-            contractsList = existingList;
-            switchToAdminView();
+            showToast('¡Contrato firmado y sincronizado en la nube!', 'success');
         }
 
         function downloadPDF(idOrObj) {
