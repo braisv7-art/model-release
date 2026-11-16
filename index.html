@@ -1,273 +1,312 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Braiton Saldaña | Model Release & Firma Digital</title>
+    <title>Braiton Saldaña — Model Release Cloud</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Inter & JetBrains Mono -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-    <!-- Supabase JS Client UMD -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <script>
         tailwind.config = {
             darkMode: 'class',
             theme: {
                 extend: {
-                    fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
-                    },
                     colors: {
                         studio: {
+                            50: '#f4f4f5',
+                            100: '#e4e4e7',
+                            800: '#27272a',
+                            900: '#18181b',
                             950: '#09090b',
-                            900: '#121215',
-                            850: '#18181c',
-                            800: '#222228',
-                            700: '#32323a',
                         }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
                     }
                 }
             }
-        };
+        }
     </script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- jsPDF & html2canvas for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body { font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-thumb { background: #52525b; border-radius: 3px; }
-        .signature-canvas { touch-action: none; cursor: crosshair; }
+        body { font-family: 'Inter', sans-serif; }
+        .signature-canvas { touch-action: none; }
         @media print {
-            body * { visibility: hidden; }
-            #print-fallback-sheet, #print-fallback-sheet * { visibility: visible; }
-            #print-fallback-sheet { position: absolute; left: 0; top: 0; width: 100%; background: white !important; color: black !important; padding: 20px; }
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
         }
     </style>
 </head>
-<body class="bg-zinc-50 text-zinc-900 dark:bg-studio-950 dark:text-zinc-100 min-h-screen flex flex-col transition-colors duration-200">
+<body class="h-full bg-studio-50 text-studio-950 dark:bg-studio-950 dark:text-studio-50 flex flex-col transition-colors duration-200">
 
-    <!-- Notificaciones Toast -->
-    <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2 pointer-events-none max-w-sm w-full px-4 sm:px-0"></div>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
 
-    <!-- Modal Reutilizable -->
-    <div id="custom-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl">
-            <div class="flex items-center justify-between mb-4">
-                <h3 id="modal-title" class="text-lg font-semibold tracking-tight">Título</h3>
-                <button type="button" onclick="closeModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1.5 rounded-lg">✕</button>
+    <!-- Main Header -->
+    <header class="border-b border-zinc-200 dark:border-studio-800 bg-white/80 dark:bg-studio-900/80 backdrop-blur sticky top-0 z-40 px-4 sm:px-8 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center font-bold text-lg tracking-wider shadow-sm">BS</div>
+            <div>
+                <h1 class="font-bold text-base sm:text-lg tracking-tight">BRAITON SALDAÑA</h1>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400 font-mono">MODEL RELEASE CLOUD</p>
             </div>
-            <div id="modal-body" class="text-sm text-zinc-600 dark:text-zinc-300 space-y-3 mb-6 max-h-[65vh] overflow-y-auto"></div>
-            <div id="modal-actions" class="flex justify-end gap-3"></div>
         </div>
-    </div>
-
-    <!-- Header -->
-    <header class="border-b border-zinc-200 dark:border-studio-800 bg-white/90 dark:bg-studio-950/90 backdrop-blur-md sticky top-0 z-40">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-            <div class="flex items-center gap-3">
-                <div class="w-9 h-9 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center font-bold text-sm shadow-sm">BS</div>
-                <div>
-                    <span class="font-semibold tracking-tight text-sm sm:text-base block leading-none uppercase">Braiton Saldaña</span>
-                    <span class="text-[11px] font-mono text-zinc-500 dark:text-zinc-400 tracking-wider uppercase">Model Release Cloud</span>
-                </div>
-            </div>
-            <div class="flex items-center gap-2 sm:gap-3">
-                <button type="button" id="btn-cloud-status" onclick="openCloudConfigModal()" class="text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 transition flex items-center gap-1.5">
-                    <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
-                    <span id="cloud-status-text">Configurar Cloud</span>
-                </button>
-                <button type="button" id="btn-back-admin" onclick="switchToAdminView()" class="hidden text-xs font-medium px-3.5 py-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 transition flex items-center gap-1.5">
-                    <span>← Panel Estudio</span>
-                </button>
-                <button type="button" onclick="toggleTheme()" class="p-2 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-studio-900 dark:hover:bg-studio-800 border border-zinc-200 dark:border-studio-800 text-zinc-600 dark:text-zinc-300 transition">
-                    <svg id="icon-sun" class="w-4 h-4 hidden dark:block" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2m0 18v2M4.22 4.22l1.42 1.42m12.72 12.72l1.42 1.42M1 12h2m18 0h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
-                    <svg id="icon-moon" class="w-4 h-4 block dark:hidden" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
-                </button>
-            </div>
+        <div class="flex items-center gap-2">
+            <button onclick="openCloudConfigModal()" id="btn-cloud-status" class="text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5">
+                <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                <span id="cloud-status-text">Configurar Cloud</span>
+            </button>
+            <button onclick="toggleDarkMode()" class="p-2 rounded-xl border border-zinc-200 dark:border-studio-800 hover:bg-zinc-100 dark:hover:bg-studio-800 transition">
+                <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </button>
         </div>
     </header>
 
-    <!-- Vista 1: Panel Admin -->
-    <main id="admin-view" class="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 py-8 space-y-8">
-        <div class="flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-zinc-200 dark:border-studio-800 pb-6">
-            <div>
-                <p class="text-xs font-mono uppercase tracking-widest text-zinc-500 mb-1">Gestión Cloud en Tiempo Real</p>
-                <h1 class="text-2xl sm:text-3xl font-semibold tracking-tight">Archivo de Braiton Saldaña</h1>
-            </div>
-            <div class="flex flex-wrap items-center gap-2.5">
-                <button type="button" onclick="openCloudConfigModal()" class="px-4 py-2.5 rounded-xl bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 text-xs sm:text-sm font-medium hover:opacity-80 transition">⚙ Configurar Supabase</button>
-                <button type="button" onclick="openBackupModal()" class="px-4 py-2.5 rounded-xl bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 text-xs sm:text-sm font-medium hover:opacity-80 transition">Respaldo JSON</button>
-                <button type="button" onclick="openNewContractModal()" class="px-5 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-xs sm:text-sm hover:opacity-90 transition">+ Nuevo Contrato</button>
-            </div>
-        </div>
+    <!-- App Body / Container -->
+    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col gap-6">
 
-        <!-- Métricas -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex items-center justify-between">
-                <div><p class="text-xs font-mono uppercase text-zinc-500">Total</p><p id="stat-total" class="text-3xl font-semibold mt-1">0</p></div>
-            </div>
-            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex items-center justify-between">
-                <div><p class="text-xs font-mono uppercase text-amber-600">Pendientes</p><p id="stat-pending" class="text-3xl font-semibold text-amber-600 mt-1">0</p></div>
-            </div>
-            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex items-center justify-between">
-                <div><p class="text-xs font-mono uppercase text-emerald-600">Firmados</p><p id="stat-signed" class="text-3xl font-semibold text-emerald-600 mt-1">0</p></div>
-            </div>
-        </div>
-
-        <!-- Búsqueda y Filtros -->
-        <div class="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-            <input type="text" id="search-input" oninput="renderContractsList()" placeholder="Buscar proyecto o modelo..." class="w-full max-w-md bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-xl px-4 py-2.5 text-sm outline-none">
-            <div class="flex items-center gap-1.5 bg-white dark:bg-studio-900 p-1 rounded-xl border border-zinc-200 dark:border-studio-800 self-start">
-                <button type="button" onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 text-white dark:bg-studio-800 transition">Todos</button>
-                <button type="button" onclick="setFilter('pending')" id="filter-pending" class="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">Pendientes</button>
-                <button type="button" onclick="setFilter('signed')" id="filter-signed" class="px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">Firmados</button>
-            </div>
-        </div>
-
-        <div id="contracts-list" class="grid grid-cols-1 gap-4"></div>
-        <div id="empty-state" class="hidden bg-white dark:bg-studio-900/50 border border-dashed border-zinc-300 dark:border-studio-800 rounded-2xl p-12 text-center">
-            <p class="text-base font-medium mb-1">No hay contratos registrados</p>
-            <button type="button" onclick="openNewContractModal()" class="mt-4 px-5 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Crear Primer Contrato</button>
-        </div>
-    </main>
-
-    <!-- Modal Configuración Cloud (Supabase) -->
-    <div id="cloud-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 rounded-2xl max-w-lg w-full p-6 sm:p-8 shadow-2xl my-8">
-            <div class="flex items-center justify-between border-b border-zinc-200 dark:border-studio-800 pb-4 mb-5">
-                <h2 class="text-xl font-semibold">Configurar Base de Datos Cloud</h2>
-                <button type="button" onclick="closeCloudConfigModal()" class="text-zinc-400 p-2 rounded-xl bg-zinc-100 dark:bg-studio-800">✕</button>
-            </div>
-            <p class="text-xs text-zinc-500 mb-5 leading-relaxed">
-                Para que las firmas de tus modelos se sincronicen al instante en cualquier dispositivo, conecta una base de datos gratuita de <strong>Supabase</strong>. 
-                Crea una tabla llamada <code class="bg-zinc-100 dark:bg-studio-800 px-1.5 py-0.5 rounded text-amber-600">contracts</code> con columnas: <code class="bg-zinc-100 dark:bg-studio-800 px-1 py-0.5 rounded">id</code> (text, primary key) y <code class="bg-zinc-100 dark:bg-studio-800 px-1 py-0.5 rounded">data</code> (jsonb).
-            </p>
-            <form onsubmit="handleSaveCloudConfig(event)" class="space-y-4">
+        <!-- Photographer Dashboard View -->
+        <div id="view-dashboard" class="flex flex-col gap-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Supabase Project URL *</label>
-                    <input type="url" id="inp-supabase-url" placeholder="https://xxxxxx.supabase.co" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none font-mono">
+                    <h2 class="text-2xl font-bold tracking-tight">Gestión Cloud en Tiempo Real</h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">Administra contratos, comparte enlaces cortos y recibe firmas sincronizadas.</p>
                 </div>
-                <div>
-                    <label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Supabase Anon Key *</label>
-                    <input type="password" id="inp-supabase-key" placeholder="eyJhbGciOiJIUzI1NiIsIn..." class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none font-mono">
+                <div class="flex items-center gap-2">
+                    <button onclick="openNewContractModal()" class="px-4 py-2.5 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-semibold text-sm hover:opacity-90 transition flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Nuevo Contrato
+                    </button>
+                    <button onclick="exportJSONBackup()" class="px-3.5 py-2.5 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 dark:hover:bg-studio-700 rounded-xl text-sm font-medium transition">Respaldo JSON</button>
                 </div>
-                <div class="flex justify-end gap-3 pt-3 border-t border-zinc-200 dark:border-studio-800">
-                    <button type="button" onclick="disconnectCloud()" class="px-4 py-2.5 rounded-xl bg-red-500/10 text-red-600 text-xs font-semibold">Desconectar</button>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Guardar Conexión</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <!-- Modal Nuevo Contrato -->
-    <div id="new-contract-modal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/80 backdrop-blur-sm p-4 overflow-y-auto">
-        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-700 rounded-2xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl my-8">
-            <div class="flex items-center justify-between border-b border-zinc-200 dark:border-studio-800 pb-4 mb-6">
-                <h2 class="text-xl font-semibold">Nuevo Model Release</h2>
-                <button type="button" onclick="closeNewContractModal()" class="text-zinc-400 p-2 rounded-xl bg-zinc-100 dark:bg-studio-800">✕</button>
             </div>
-            <form id="new-contract-form" onsubmit="handleCreateContract(event)" class="space-y-5">
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Proyecto *</label><input type="text" id="inp-project" required placeholder="Ej. Retratos Estudio" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Fecha *</label><input type="date" id="inp-date" required class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Locación *</label><input type="text" id="inp-location" required placeholder="Ej. León, Gto." class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Licencia *</label><select id="inp-usage" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"><option value="Commercial, Editorial and Worldwide Licensing">Commercial, Editorial and Worldwide Licensing</option><option value="Editorial and Portfolio Use Exclusively">Editorial and Portfolio Use Exclusively</option></select></div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Nombre Modelo (Opcional)</label><input type="text" id="inp-model-prefill" placeholder="Ej. Gael Saldaña" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Compensación</label><input type="text" id="inp-compensation" value="Agreed compensation and/or delivery of edited photographs" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                </div>
-                <div>
-                    <label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Cláusulas del Contrato (Inglés estándar)</label>
-                    <textarea id="inp-terms" rows="5" required class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl p-3.5 text-xs font-mono outline-none"></textarea>
-                </div>
-                <div class="flex justify-end gap-3 pt-4 border-t border-zinc-200 dark:border-studio-800">
-                    <button type="button" onclick="closeNewContractModal()" class="px-4 py-2.5 rounded-xl bg-zinc-100 dark:bg-studio-800 text-sm font-medium">Cancelar</button>
-                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Crear Contrato Cloud</button>
-                </div>
-            </form>
-        </div>
-    </div>
 
-    <!-- Vista 2: Firma del Modelo -->
-    <main id="signing-view" class="hidden flex-1 max-w-3xl w-full mx-auto px-4 sm:px-6 py-8">
-        <div id="signed-success-banner" class="hidden bg-white dark:bg-studio-900 border border-emerald-500/40 rounded-2xl p-6 sm:p-8 text-center space-y-5 shadow-lg">
-            <div class="w-16 h-16 rounded-2xl bg-emerald-500/10 text-emerald-600 mx-auto flex items-center justify-center font-bold text-2xl">✓</div>
-            <h2 class="text-2xl font-semibold">Contrato Firmado con Éxito</h2>
-            <p class="text-sm text-zinc-500">Sellado con certificado criptográfico SHA-256 para Braiton Saldaña y sincronizado en la nube.</p>
-            <div class="flex flex-wrap justify-center gap-3 pt-2">
-                <button type="button" id="btn-download-signed-pdf" class="px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Descargar PDF Certificado</button>
-                <button type="button" onclick="window.print()" class="px-5 py-3 rounded-xl bg-zinc-100 dark:bg-studio-800 font-medium text-sm">Imprimir</button>
-                <button type="button" onclick="switchToAdminView()" class="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm">Volver al Panel</button>
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Total Contratos</p>
+                    <p id="stat-total" class="text-3xl font-bold font-mono mt-1">0</p>
+                </div>
+                <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-medium text-amber-500 uppercase tracking-wider">Pendientes de Firma</p>
+                    <p id="stat-pending" class="text-3xl font-bold font-mono mt-1 text-amber-500">0</p>
+                </div>
+                <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-medium text-emerald-500 uppercase tracking-wider">Firmados</p>
+                    <p id="stat-signed" class="text-3xl font-bold font-mono mt-1 text-emerald-500">0</p>
+                </div>
+            </div>
+
+            <!-- Contracts Search & Filter -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input type="text" id="search-input" oninput="renderContractsList()" placeholder="Buscar proyecto o modelo..." class="flex-1 bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500 transition">
+                <div class="flex items-center gap-1 bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 p-1 rounded-xl">
+                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 transition">Todos</button>
+                    <button onclick="setFilter('pending')" id="filter-pending" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">Pendientes</button>
+                    <button onclick="setFilter('signed')" id="filter-signed" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">Firmados</button>
+                </div>
+            </div>
+
+            <!-- Contracts List -->
+            <div id="contracts-container" class="flex flex-col gap-3">
+                <!-- Dinámico -->
             </div>
         </div>
 
-        <div id="signing-form-container" class="space-y-6">
-            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6">
-                <span id="sign-contract-id" class="text-xs font-mono text-amber-600 block mb-2">● PENDIENTE DE FIRMA</span>
-                <h1 id="sign-project-title" class="text-2xl font-semibold mb-4">Proyecto</h1>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
-                    <div class="bg-zinc-50 dark:bg-studio-950 p-3 rounded-xl border border-zinc-200 dark:border-studio-800"><span class="text-zinc-500 block">FOTÓGRAFO</span><strong id="sign-photographer">Braiton Saldaña Valdez</strong></div>
-                    <div class="bg-zinc-50 dark:bg-studio-950 p-3 rounded-xl border border-zinc-200 dark:border-studio-800"><span class="text-zinc-500 block">FECHA</span><span id="sign-date">---</span></div>
-                    <div class="bg-zinc-50 dark:bg-studio-950 p-3 rounded-xl border border-zinc-200 dark:border-studio-800"><span class="text-zinc-500 block">LOCACIÓN</span><span id="sign-location">---</span></div>
-                </div>
+        <!-- Model Signing / Preview View -->
+        <div id="view-signing" class="hidden flex-col gap-6 max-w-4xl mx-auto w-full">
+            <div class="flex items-center justify-between border-b border-zinc-200 dark:border-studio-800 pb-4">
+                <button onclick="backToDashboard()" class="text-sm font-semibold flex items-center gap-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    Volver al Panel
+                </button>
+                <div id="signing-badge" class="px-3 py-1 rounded-full text-xs font-mono font-medium">Estado</div>
             </div>
 
-            <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6">
-                <h2 class="text-xs font-mono uppercase tracking-wider text-zinc-500 mb-3">Términos Legales</h2>
-                <div id="sign-contract-body" class="bg-zinc-50 dark:bg-studio-950 border border-zinc-200 dark:border-studio-800 rounded-xl p-5 text-sm leading-relaxed max-h-64 overflow-y-auto whitespace-pre-line font-mono"></div>
+            <div id="contract-document-preview" class="bg-white text-zinc-900 p-8 sm:p-12 rounded-2xl shadow-xl border border-zinc-200 flex flex-col gap-6 font-sans">
+                <!-- Se inyecta la plantilla del contrato oficial -->
             </div>
 
-            <form id="model-signature-form" onsubmit="handleModelSignSubmit(event)" class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6 space-y-6">
-                <h2 class="text-base font-semibold border-b border-zinc-200 dark:border-studio-800 pb-3">Model Information</h2>
+            <!-- Formulario de firma si está pendiente -->
+            <div id="signing-form-box" class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6 sm:p-8 flex flex-col gap-6 shadow-sm">
+                <h3 class="font-bold text-lg">Datos y Firma del Modelo</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Nombre Completo *</label><input type="text" id="mod-fullname" required oninput="updateLiveContractPreview()" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">CURP / INE No. *</label><input type="text" id="mod-idnumber" required class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Fecha Nacimiento *</label><input type="date" id="mod-dob" required class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Género *</label><select id="mod-gender" required class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"><option value="M">M</option><option value="F">F</option></select></div>
-                    <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Teléfono *</label><input type="tel" id="mod-phone" required class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-                </div>
-                <div><label class="block text-xs font-mono uppercase text-zinc-500 mb-1.5">Dirección y Ciudad *</label><input type="text" id="mod-address" required placeholder="Calle, Número, Ciudad, CP" class="w-full bg-zinc-50 dark:bg-studio-950 border border-zinc-300 dark:border-studio-700 rounded-xl px-3.5 py-2.5 text-sm outline-none"></div>
-
-                <div>
-                    <div class="flex justify-between mb-2"><h2 class="text-base font-semibold">Firma Digital *</h2><button type="button" onclick="clearSignaturePad()" class="text-xs font-mono text-zinc-500 hover:underline">Limpiar</button></div>
-                    <div class="relative bg-white rounded-2xl overflow-hidden border-2 border-zinc-300 dark:border-studio-700 h-44 shadow-inner">
-                        <canvas id="signature-canvas" class="signature-canvas w-full h-full block"></canvas>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre Completo del Modelo</label>
+                        <input type="text" id="model-full-name" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Fecha de Nacimiento</label>
+                        <input type="date" id="model-dob" onchange="checkMinorAge()" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Género</label>
+                        <select id="model-gender" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                            <option value="M">Masculino (M)</option>
+                            <option value="F">Femenino (F)</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">CURP / INE No.</label>
+                        <input type="text" id="model-curp" placeholder="Ej. ABCD123456HDF..." required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500 font-mono uppercase">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Dirección Completa (Calle, Ciudad, Estado, País, C.P.)</label>
+                        <input type="text" id="model-address" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Teléfono</label>
+                        <input type="tel" id="model-phone" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Correo Electrónico</label>
+                        <input type="email" id="model-email" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Etnia (Opcional - Fines descriptivos de stock)</label>
+                        <select id="model-ethnicity" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                            <option value="">Ninguna / Prefiero no especificar</option>
+                            <option value="Caucasian, White">Caucasian, White</option>
+                            <option value="Hispanic, Latin">Hispanic, Latin</option>
+                            <option value="Black, African">Black, African</option>
+                            <option value="Asian (Chinese, Indian, Japanese, Korean)">Asian (Chinese, Indian, Japanese, Korean)</option>
+                            <option value="Native American">Native American</option>
+                            <option value="Pacific Islander">Pacific Islander</option>
+                            <option value="Middle Eastern">Middle Eastern</option>
+                            <option value="Mixed Race">Mixed Race</option>
+                        </select>
                     </div>
                 </div>
 
-                <button type="submit" class="w-full py-3.5 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm hover:opacity-90 transition">Aceptar y Firmar Model Release</button>
-            </form>
+                <!-- Sección para menores de edad (condicional) -->
+                <div id="guardian-section" class="hidden flex-col gap-4 border-t border-zinc-200 dark:border-studio-800 pt-4 mt-2">
+                    <p class="text-xs font-semibold text-amber-500">⚠️ El modelo es menor de 18 años. Se requiere autorización del padre o tutor legal:</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre del Padre o Tutor Legal</label>
+                            <input type="text" id="guardian-name" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">CURP / INE del Tutor</label>
+                            <input type="text" id="guardian-curp" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500 font-mono uppercase">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Canvas de Firma Digital -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-medium text-zinc-400">Firma Digital del Modelo (Dibuja dentro del recuadro)</label>
+                        <button type="button" onclick="clearSignature()" class="text-xs text-red-500 hover:underline">Limpiar firma</button>
+                    </div>
+                    <div class="border-2 border-dashed border-zinc-300 dark:border-studio-700 rounded-2xl bg-white overflow-hidden relative touch-none">
+                        <canvas id="sig-canvas" class="signature-canvas w-full h-48 cursor-crosshair"></canvas>
+                    </div>
+                </div>
+
+                <button onclick="submitModelSignature()" class="w-full py-3.5 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm hover:opacity-90 transition shadow-md">
+                    Aceptar, Firmar y Enviar Contrato
+                </button>
+            </div>
         </div>
-        <div id="print-fallback-sheet" class="hidden"></div>
+
     </main>
 
+    <!-- Modal Nuevo Contrato -->
+    <div id="modal-new" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl max-w-lg w-full p-6 sm:p-8 flex flex-col gap-6 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold">Crear Nuevo Release de Contrato</h3>
+                <button onclick="closeNewContractModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">✕</button>
+            </div>
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre del Proyecto / Shoot</label>
+                    <input type="text" id="inp-project" placeholder="Ej. Urban Night Session" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Release No.</label>
+                        <input type="number" id="inp-no" value="1" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Fecha del Shoot</label>
+                        <input type="date" id="inp-date" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Locación (Ciudad / Estado)</label>
+                    <input type="text" id="inp-location" value="Guanajuato, México" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Compensación / Pago</label>
+                    <input type="text" id="inp-compensation" value="Agreed compensation and/or delivery of edited photographs" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Licencia y Usos Autorizados</label>
+                    <input type="text" id="inp-license" value="Commercial, Editorial and Worldwide Licensing" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre Precargado del Modelo (Opcional)</label>
+                    <input type="text" id="inp-prefill" placeholder="Ej. Gael Saldaña" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+            </div>
+            <button onclick="createNewContract()" class="py-3 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm hover:opacity-95 transition">Generar y Obtener Enlace Corto</button>
+        </div>
+    </div>
+
+    <!-- Modal Configuración Supabase -->
+    <div id="modal-cloud" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl max-w-lg w-full p-6 sm:p-8 flex flex-col gap-6 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold">Configuración Supabase Cloud</h3>
+                <button onclick="closeCloudConfigModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">✕</button>
+            </div>
+            <p class="text-xs text-zinc-500 dark:text-zinc-400">Conecta tu propia base de datos Supabase gratuita para que los contratos firmados desde el celular de tus modelos se sincronicen al instante en todos tus dispositivos.</p>
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Supabase Project URL</label>
+                    <input type="url" id="supabase-url-input" placeholder="https://xxxxxx.supabase.co" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none font-mono">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Supabase Anon Key</label>
+                    <input type="password" id="supabase-key-input" placeholder="eyJhbGciOi..." class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none font-mono">
+                </div>
+            </div>
+            <div class="flex items-center gap-3">
+                <button onclick="saveSupabaseConfig()" class="flex-1 py-3 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm hover:opacity-95 transition">Guardar y Conectar</button>
+                <button onclick="disconnectSupabase()" class="px-4 py-3 bg-red-500/10 text-red-600 rounded-xl font-bold text-sm hover:bg-red-500/20 transition">Desconectar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
     <script>
-        const STORAGE_KEY = 'braiton_saldana_cloud_v1';
         let contractsList = [];
         let currentFilter = 'all';
-        let activeContract = null;
-        let canvas, ctx, isDrawing = false, hasSigned = false;
+        let activeContractId = null;
         let supabaseClient = null;
+        let signatureCanvas, signatureCtx, isDrawing = false;
 
         const DEFAULT_TERMS = `MODEL RELEASE — BRAITON SALDAÑA
-Shoot Date: {{FECHA}}  |  Photographer/Filmmaker: {{FOTOGRAFO}}
-Description of Shoot: {{PROYECTO}}  |  Location of Shoot (City/State): {{LUGAR}}
+Shoot Date: {{FECHA}}  |  Photographer/Filmmaker: Braiton Saldaña Valdez
+Description of Shoot: {{PROYECTO}}  |  Location of Shoot: {{LUGAR}}
 
 For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received, and by signing this release I grant as follows:
 
-1. I irrevocably grant to Photographer/Filmmaker and its licensees, successors, and assigns ("Photographer/Filmmaker") the right to license and use the still or motion photographs or film taken of me including my voice, picture, portrait and likeness (the "Images") in any and all media and for any use whatsoever (except illegal or pornographic), including without limitation, art, stock, advertising, trade and promotion ({{USO}}), in perpetuity. Uses may include subject that may be controversial or sensitive including but are not limited to the use of an Image that involves or implies illegal activities, adverse medical conditions or procedures, other adverse health or mental health issues, substance abuse, drug use, welfare or economic aid, dating agencies, sexual preference, teen pregnancy, abortion and adoption, political or religious affiliation, smoking or alcohol usage, feminine hygiene, incontinence or impotence. If I should receive any print, negative, digital file, film or other copy, I shall only use it for my own personal use and shall not authorize anyone else to use it. I agree and acknowledge that all rights to the Images are owned by "Photographer/Filmmaker" including the right to copyright the Images.
+1. I irrevocably grant to Photographer/Filmmaker and its licensees, successors, and assigns ("Photographer/Filmmaker") the right to license and use the still or motion photographs or film taken of me including my voice, picture, portrait and likeness (the "Images") in any and all media and for any use whatsoever (except illegal or pornographic), including without limitation, art, stock, advertising, trade and promotion ({{USOS}}), in perpetuity. Uses may include subject that may be controversial or sensitive including but not limited to adverse medical conditions, mental health, substance abuse, political or religious affiliation, smoking or alcohol usage. If I should receive any print, negative, digital file, film or other copy, I shall only use it for my own personal use and shall not authorize anyone else to use it. I agree and acknowledge that all rights to the Images are owned by "Photographer/Filmmaker" including the right to copyright the Images.
 
 2. I agree that no advertisement, product or other material need be submitted to me for any further approval and the Photographer/Filmmaker shall be without liability to me for any distortion or illusionary effect or adverse result to me on account of the publication, distribution or broadcast of the Images. I agree that the Images may be combined with other material and may be cropped, altered or modified. I consent to the use of my name or a fictitious name, and consent to the publications of any of the ethnicities indicated below, but understand that other ethnicities may be associated with the Images by the Photographer/Filmmaker for descriptive purposes.
 
-3. I understand that my personal information will not be made publicly available but may be used as required or necessary directly in relation to the licensing of the Images and may be retained as long as necessary to fulfil this purpose, including by being shared with the licensees / assignees of the Photographer/ Filmmaker and transferred to countries with differing data protection and privacy laws where it may be stored, accessed and used.
+3. I understand that my personal information will not be made publicly available but may be used as required or necessary directly in relation to the licensing of the Images and may be retained as long as necessary to fulfill this purpose, including by being shared with the licensees / assignees and transferred to countries with differing data protection laws.
 
 4. I release, discharge and agree to hold harmless the Photographer/Filmmaker and his/her licensees, sub-licensees, successors, and assigns ("Released Parties") from any liability arising out of or in connection with the use of the Images, including any and all claims for defamation and or and invasion of privacy or publicity. I acknowledge that the Released Parties are not responsible or liable for any unauthorized use, or piracy of the Images.
 
@@ -276,27 +315,33 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 6. I am an independent contractor and am not eligible for insurance or other benefits. I am solely responsible for my own taxes, insurance, benefits and costs and release Photographer/Filmmaker from any, and all, liability for any physical injury arising from the Shoot.`;
 
         window.addEventListener('DOMContentLoaded', async () => {
+            initTheme();
             initSupabaseFromStorage();
             setupCanvas();
-            document.getElementById('inp-terms').value = DEFAULT_TERMS;
             document.getElementById('inp-date').value = new Date().toISOString().split('T')[0];
 
-            await loadCloudContracts();
+            await loadContracts();
 
             const urlParams = new URLSearchParams(window.location.search);
             const contractId = urlParams.get('id');
+            const dataParam = urlParams.get('data'); // Respaldo comprimido en URL
 
-            if (contractId) {
-                // Buscar el contrato por ID corto en la nube/local
-                let found = contractsList.find(c => c.id === contractId);
-                if (!found && supabaseClient) {
+            if (contractId || dataParam) {
+                let found = null;
+                if (contractId) {
+                    found = contractsList.find(c => c.id === contractId);
+                    if (!found && supabaseClient) {
+                        try {
+                            const { data } = await supabaseClient.from('contracts').select('*').eq('id', contractId).single();
+                            if (data && data.data) found = data.data;
+                        } catch(e) {}
+                    }
+                }
+                if (!found && dataParam) {
                     try {
-                        const { data, error } = await supabaseClient.from('contracts').select('*').eq('id', contractId).single();
-                        if (data && data.data) {
-                            found = data.data;
-                        }
+                        found = JSON.parse(decodeURIComponent(escape(atob(dataParam))));
                     } catch(e) {
-                        console.error('Error buscando contrato en Supabase', e);
+                        try { found = JSON.parse(decodeURIComponent(atob(dataParam))); } catch(err) {}
                     }
                 }
 
@@ -312,428 +357,568 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             }
         });
 
+        // Configuración Supabase
         function initSupabaseFromStorage() {
-            const config = JSON.parse(localStorage.getItem('supabase_config') || 'null');
+            let config = JSON.parse(localStorage.getItem('supabase_config') || 'null');
             if (config && config.url && config.key) {
                 try {
                     supabaseClient = window.supabase.createClient(config.url, config.key);
                     document.getElementById('cloud-status-dot').className = 'w-2 h-2 rounded-full bg-emerald-500';
                     document.getElementById('cloud-status-text').textContent = 'Cloud Activo';
-                    document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 transition flex items-center gap-1.5';
-                } catch(e) {
-                    console.error(e);
-                }
+                    document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 transition flex items-center gap-1.5';
+                } catch(e) {}
             }
         }
 
         function openCloudConfigModal() {
-            const config = JSON.parse(localStorage.getItem('supabase_config') || '{}');
-            document.getElementById('inp-supabase-url').value = config.url || '';
-            document.getElementById('inp-supabase-key').value = config.key || '';
-            document.getElementById('cloud-modal').classList.remove('hidden');
-            document.getElementById('cloud-modal').classList.add('flex');
+            let config = JSON.parse(localStorage.getItem('supabase_config') || '{}');
+            if (config.url) document.getElementById('supabase-url-input').value = config.url;
+            if (config.key) document.getElementById('supabase-key-input').value = config.key;
+            document.getElementById('modal-cloud').classList.remove('hidden');
+            document.getElementById('modal-cloud').classList.add('flex');
         }
+
         function closeCloudConfigModal() {
-            document.getElementById('cloud-modal').classList.add('hidden');
-            document.getElementById('cloud-modal').classList.remove('flex');
+            document.getElementById('modal-cloud').classList.remove('flex');
+            document.getElementById('modal-cloud').classList.add('hidden');
         }
 
-        function handleSaveCloudConfig(e) {
-            e.preventDefault();
-            const url = document.getElementById('inp-supabase-url').value.trim();
-            const key = document.getElementById('inp-supabase-key').value.trim();
-            localStorage.setItem('supabase_config', JSON.stringify({url, key}));
-            closeCloudConfigModal();
+        async function saveSupabaseConfig() {
+            const url = document.getElementById('supabase-url-input').value.trim();
+            const key = document.getElementById('supabase-key-input').value.trim();
+            if (!url || !key) {
+                showToast('Introduce URL y Key válidas.', 'error');
+                return;
+            }
+            localStorage.setItem('supabase_config', JSON.stringify({ url, key }));
             initSupabaseFromStorage();
-            loadCloudContracts();
-            showToast('Configuración Cloud guardada.', 'success');
+            closeCloudConfigModal();
+            showToast('Cloud configurado correctamente.', 'success');
+            await loadContracts();
         }
 
-        function disconnectCloud() {
+        async function disconnectSupabase() {
             localStorage.removeItem('supabase_config');
             supabaseClient = null;
             document.getElementById('cloud-status-dot').className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
             document.getElementById('cloud-status-text').textContent = 'Configurar Cloud';
-            document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/20 transition flex items-center gap-1.5';
+            document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5';
             closeCloudConfigModal();
-            showToast('Cloud desconectado. Usando almacenamiento local.', 'info');
+            showToast('Cloud desconectado. Trabajando localmente.', 'info');
         }
 
-        async function loadCloudContracts() {
+        async function loadContracts() {
+            let local = JSON.parse(localStorage.getItem('bs_contracts') || '[]');
             if (supabaseClient) {
                 try {
                     const { data, error } = await supabaseClient.from('contracts').select('*');
                     if (!error && data) {
-                        contractsList = data.map(item => item.data);
-                        contractsList.sort((a, b) => b.releaseNo - a.releaseNo);
-                        updateStats();
-                        renderContractsList();
-                        return;
+                        const cloudMap = new Map();
+                        data.forEach(row => { if (row.data) cloudMap.set(row.data.id, row.data); });
+                        local.forEach(c => { if (!cloudMap.has(c.id)) cloudMap.set(c.id, c); });
+                        contractsList = Array.from(cloudMap.values());
+                    } else {
+                        contractsList = local;
                     }
                 } catch(e) {
-                    console.error('Error cargando de Supabase', e);
+                    contractsList = local;
                 }
+            } else {
+                contractsList = local;
             }
-            // Fallback Local
-            try { contractsList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { contractsList = []; }
+            saveLocalAndCloud(null, false);
             updateStats();
             renderContractsList();
         }
 
-        async function saveContractToCloudOrLocal(contractObj) {
-            // Actualizar en lista local
-            const idx = contractsList.findIndex(c => c.id === contractObj.id);
-            if (idx >= 0) contractsList[idx] = contractObj;
-            else contractsList.unshift(contractObj);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(contractsList));
+        async function saveContractToStorage(cObj) {
+            const idx = contractsList.findIndex(x => x.id === cObj.id);
+            if (idx >= 0) contractsList[idx] = cObj;
+            else contractsList.push(cObj);
+
+            localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
 
             if (supabaseClient) {
                 try {
-                    await supabaseClient.from('contracts').upsert({ id: contractObj.id, data: contractObj });
-                } catch(e) {
-                    console.error('Error guardando en Supabase', e);
-                }
+                    await supabaseClient.from('contracts').upsert({ id: cObj.id, data: cObj });
+                } catch(e) {}
             }
         }
 
-        function toggleTheme() {
-            document.documentElement.classList.toggle('dark');
+        function saveLocalAndCloud(obj, sync = true) {
+            if (obj && sync) saveContractToStorage(obj);
+            else localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
         }
 
-        function switchToAdminView() {
-            try { window.history.replaceState({}, document.title, window.location.pathname); } catch(e){}
-            document.getElementById('signing-view').classList.add('hidden');
-            document.getElementById('btn-back-admin').classList.add('hidden');
-            document.getElementById('admin-view').classList.remove('hidden');
-            loadCloudContracts();
-        }
-
+        // Dashboard & UI
         function updateStats() {
-            document.getElementById('stat-total').textContent = contractsList.length;
-            document.getElementById('stat-pending').textContent = contractsList.filter(c => c.status !== 'signed').length;
-            document.getElementById('stat-signed').textContent = contractsList.filter(c => c.status === 'signed').length;
+            const total = contractsList.length;
+            const pending = contractsList.filter(c => c.status !== 'signed').length;
+            const signed = contractsList.filter(c => c.status === 'signed').length;
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-pending').textContent = pending;
+            document.getElementById('stat-signed').textContent = signed;
         }
 
         function setFilter(f) {
             currentFilter = f;
-            ['all', 'pending', 'signed'].forEach(id => {
-                document.getElementById(`filter-${id}`).className = id === f ? 'px-3 py-1.5 rounded-lg text-xs font-medium bg-zinc-900 text-white dark:bg-studio-800 transition' : 'px-3 py-1.5 rounded-lg text-xs font-medium text-zinc-500 hover:text-zinc-900 transition';
+            ['all', 'pending', 'signed'].forEach(type => {
+                const btn = document.getElementById(`filter-${type}`);
+                if (type === f) {
+                    btn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 transition';
+                } else {
+                    btn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition';
+                }
             });
             renderContractsList();
         }
 
         function renderContractsList() {
-            const container = document.getElementById('contracts-list');
-            const empty = document.getElementById('empty-state');
-            const q = (document.getElementById('search-input').value || '').toLowerCase();
+            const query = (document.getElementById('search-input').value || '').toLowerCase();
+            const container = document.getElementById('contracts-container');
 
-            const filtered = contractsList.filter(c => {
-                if (currentFilter === 'pending' && c.status === 'signed') return false;
-                if (currentFilter === 'signed' && c.status !== 'signed') return false;
-                if (q && !c.projectName.toLowerCase().includes(q) && !(c.modelData?.fullName || c.modelPrefill || '').toLowerCase().includes(q)) return false;
-                return true;
+            let filtered = contractsList.filter(c => {
+                const matchStatus = currentFilter === 'all' || (currentFilter === 'signed' ? c.status === 'signed' : c.status !== 'signed');
+                const matchQuery = c.projectName.toLowerCase().includes(query) || (c.modelPrefill || '').toLowerCase().includes(query) || (c.modelData?.fullName || '').toLowerCase().includes(query);
+                return matchStatus && matchQuery;
             });
 
             if (filtered.length === 0) {
-                container.innerHTML = '';
-                empty.classList.remove('hidden');
+                container.innerHTML = `<div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-8 text-center text-zinc-400 text-sm">No se encontraron contratos.</div>`;
                 return;
             }
-            empty.classList.add('hidden');
 
             container.innerHTML = filtered.map(c => {
                 const isSigned = c.status === 'signed';
-                const modelName = isSigned ? c.modelData.fullName : (c.modelPrefill || 'Pendiente');
-                
-                // Enlace corto limpio usando únicamente el ID único
-                const link = `${window.location.href.split('?')[0]}?id=${c.id}`;
+                const modelName = isSigned ? c.modelData.fullName : (c.modelPrefill || 'Pendiente de asignar');
+                const shortLink = `${window.location.href.split('?')[0]}?id=${c.id}`;
 
                 return `
-                    <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
                                 <span class="text-xs font-mono px-2 py-0.5 rounded ${isSigned ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}">${isSigned ? 'Firmado' : 'Pendiente'}</span>
-                                <span class="text-xs text-zinc-400">Release No. ${c.releaseNo}</span>
+                                <span class="text-xs text-zinc-400 font-mono">Release No. ${c.releaseNo}</span>
                             </div>
                             <h3 class="font-semibold text-base">${escapeHTML(c.projectName)}</h3>
-                            <p class="text-xs text-zinc-500">Modelo: <strong>${escapeHTML(modelName)}</strong> | ${c.shootDate}</p>
+                            <p class="text-xs text-zinc-500">Modelo: <strong>${escapeHTML(modelName)}</strong> | Fecha: ${c.shootDate}</p>
                         </div>
                         <div class="flex items-center gap-2">
                             ${isSigned ? `
-                                <button onclick="downloadPDF('${c.id}')" class="px-3 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">PDF</button>
+                                <button onclick="downloadPDF('${c.id}')" class="px-3.5 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold shadow-sm">PDF</button>
                             ` : `
-                                <button onclick="copyLink('${link}')" class="px-3 py-2 bg-zinc-100 dark:bg-studio-800 rounded-xl text-xs font-medium">Copiar Link</button>
-                                <button onclick="openSigningView(contractsList.find(x => x.id === '${c.id}'))" class="px-3 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Firmar</button>
+                                <button onclick='copySmartLink("${shortLink}", ${JSON.stringify(c)})' class="px-3.5 py-2 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 rounded-xl text-xs font-medium transition">Copiar Link</button>
+                                <button onclick="openSigningView(contractsList.find(x => x.id === '${c.id}'))" class="px-3.5 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Firmar</button>
                             `}
-                            <button onclick="deleteContract('${c.id}')" class="p-2 text-zinc-400 hover:text-red-500">🗑</button>
+                            <button onclick="deleteContract('${c.id}')" class="p-2 text-zinc-400 hover:text-red-500 transition">🗑</button>
                         </div>
                     </div>
                 `;
             }).join('');
         }
 
+        // Crear Nuevo Contrato Modal
         function openNewContractModal() {
-            document.getElementById('new-contract-modal').classList.remove('hidden');
-            document.getElementById('new-contract-modal').classList.add('flex');
+            document.getElementById('modal-new').classList.remove('hidden');
+            document.getElementById('modal-new').classList.add('flex');
         }
+
         function closeNewContractModal() {
-            document.getElementById('new-contract-modal').classList.add('hidden');
-            document.getElementById('new-contract-modal').classList.remove('flex');
+            document.getElementById('modal-new').classList.remove('flex');
+            document.getElementById('modal-new').classList.add('hidden');
         }
 
-        async function handleCreateContract(e) {
-            e.preventDefault();
-            const id = 'bs_' + Math.random().toString(36).substring(2, 6);
-            const releaseNo = contractsList.length + 1;
+        async function createNewContract() {
+            const project = document.getElementById('inp-project').value.trim();
+            const releaseNo = document.getElementById('inp-no').value.trim();
+            const date = document.getElementById('inp-date').value;
+            const location = document.getElementById('inp-location').value.trim();
+            const compensation = document.getElementById('inp-compensation').value.trim();
+            const license = document.getElementById('inp-license').value.trim();
+            const prefill = document.getElementById('inp-prefill').value.trim();
+
+            if (!project) {
+                showToast('Introduce el nombre del proyecto.', 'error');
+                return;
+            }
+
             const newC = {
-                id,
-                releaseNo,
-                projectName: document.getElementById('inp-project').value,
-                shootDate: document.getElementById('inp-date').value,
-                location: document.getElementById('inp-location').value,
-                usageType: document.getElementById('inp-usage').value,
-                modelPrefill: document.getElementById('inp-model-prefill').value,
-                compensation: document.getElementById('inp-compensation').value,
-                photographerName: 'Braiton Saldaña Valdez',
-                contractTemplate: document.getElementById('inp-terms').value,
-                status: 'pending'
+                id: 'bs_' + Math.random().toString(36).substring(2, 10),
+                releaseNo: releaseNo || '1',
+                shootDate: date,
+                projectName: project,
+                location: location,
+                compensation: compensation,
+                license: license,
+                modelPrefill: prefill,
+                status: 'pending',
+                createdAt: new Date().toISOString()
             };
-            await saveContractToCloudOrLocal(newC);
+
+            await saveContractToStorage(newC);
             closeNewContractModal();
-            renderContractsList();
             updateStats();
-            showToast('Contrato creado y sincronizado.', 'success');
+            renderContractsList();
+            showToast('Contrato creado exitosamente.', 'success');
+
+            const smartLink = `${window.location.href.split('?')[0]}?id=${newC.id}`;
+            copySmartLink(smartLink, newC);
         }
 
-        function copyLink(url) {
+        async function deleteContract(id) {
+            if (!confirm('¿Eliminar este contrato?')) return;
+            contractsList = contractsList.filter(c => c.id !== id);
+            saveLocalAndCloud(null, false);
+            if (supabaseClient) {
+                try { await supabaseClient.from('contracts').delete().eq('id', id); } catch(e) {}
+            }
+            updateStats();
+            renderContractsList();
+            showToast('Contrato eliminado.', 'info');
+        }
+
+        // Enlace Inteligente Corto con Respaldo Comprimido
+        function copySmartLink(url, contractObj) {
+            let smartLink = url;
+            if (contractObj) {
+                try {
+                    const compressed = btoa(unescape(encodeURIComponent(JSON.stringify(contractObj))));
+                    smartLink = `${window.location.href.split('?')[0]}?id=${contractObj.id}&data=${compressed}`;
+                } catch(e) {}
+            }
             const t = document.createElement('textarea');
-            t.value = url;
+            t.value = smartLink;
             document.body.appendChild(t);
             t.select();
             document.execCommand('copy');
             document.body.removeChild(t);
-            showToast('Enlace copiado al portapapeles.', 'success');
+            showToast('¡Enlace corto copiado al portapapeles!', 'success');
         }
 
-        async function deleteContract(id) {
-            contractsList = contractsList.filter(c => c.id !== id);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(contractsList));
-            if (supabaseClient) {
-                try { await supabaseClient.from('contracts').delete().eq('id', id); } catch(e){}
-            }
-            renderContractsList();
-            updateStats();
-            showToast('Contrato eliminado.', 'info');
-        }
+        // Firma y Vista de Contrato
+        function openSigningView(contract, isRemote = false) {
+            activeContractId = contract.id;
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-signing').classList.remove('hidden');
+            document.getElementById('view-signing').classList.add('flex');
 
-        function openSigningView(contract, isExternal = false) {
-            activeContract = contract;
-            document.getElementById('admin-view').classList.add('hidden');
-            document.getElementById('signing-view').classList.remove('hidden');
-            
-            if (isExternal) {
-                document.getElementById('btn-back-admin').classList.add('hidden');
-            } else {
-                document.getElementById('btn-back-admin').classList.remove('hidden');
-            }
+            const badge = document.getElementById('signing-badge');
+            const formBox = document.getElementById('signing-form-box');
+
+            renderContractText(contract);
 
             if (contract.status === 'signed') {
-                document.getElementById('signing-form-container').classList.add('hidden');
-                document.getElementById('signed-success-banner').classList.remove('hidden');
-                document.getElementById('btn-download-signed-pdf').onclick = () => downloadPDF(contract.id);
+                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-600';
+                badge.textContent = 'Contrato Firmado';
+                formBox.innerHTML = `
+                    <div class="flex flex-col items-center gap-4 py-6">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xl">✓</div>
+                        <h4 class="font-bold text-base">Este contrato ya ha sido firmado digitalmente</h4>
+                        <p class="text-xs text-zinc-500 text-center">Firmado por: <strong>${escapeHTML(contract.modelData.fullName)}</strong> el ${new Date(contract.signedAt).toLocaleDateString()}</p>
+                        <button onclick="downloadPDF('${contract.id}')" class="px-6 py-3 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm shadow-md">Descargar PDF Certificado</button>
+                    </div>
+                `;
             } else {
-                document.getElementById('signed-success-banner').classList.add('hidden');
-                document.getElementById('signing-form-container').classList.remove('hidden');
-                document.getElementById('sign-project-title').textContent = contract.projectName;
-                document.getElementById('sign-date').textContent = contract.shootDate;
-                document.getElementById('sign-location').textContent = contract.location;
-                document.getElementById('mod-fullname').value = contract.modelPrefill || '';
-                updateLiveContractPreview();
-                setTimeout(() => { resizeCanvas(); clearSignaturePad(); }, 50);
+                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-medium bg-amber-500/10 text-amber-600';
+                badge.textContent = 'Pendiente de Firma';
+                if (contract.modelPrefill) {
+                    document.getElementById('model-full-name').value = contract.modelPrefill;
+                }
+                setTimeout(() => resizeSignatureCanvas(), 200);
             }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        function updateLiveContractPreview() {
-            if (!activeContract) return;
-            const name = document.getElementById('mod-fullname').value || '[MODEL]';
-            let rawTerms = activeContract.contractTemplate || DEFAULT_TERMS;
-
-            document.getElementById('sign-contract-body').textContent = rawTerms
-                .replace(/\{\{FOTOGRAFO\}\}/g, activeContract.photographerName || 'Braiton Saldaña Valdez')
-                .replace(/\{\{MODELO\}\}/g, name)
-                .replace(/\{\{PROYECTO\}\}/g, activeContract.projectName)
-                .replace(/\{\{FECHA\}\}/g, activeContract.shootDate)
-                .replace(/\{\{LUGAR\}\}/g, activeContract.location)
-                .replace(/\{\{USO\}\}/g, activeContract.usageType)
-                .replace(/\{\{COMPENSACION\}\}/g, activeContract.compensation);
+        function backToDashboard() {
+            document.getElementById('view-signing').classList.remove('flex');
+            document.getElementById('view-signing').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            loadContracts();
         }
 
+        function renderContractText(c) {
+            let terms = DEFAULT_TERMS
+                .replace('{{FECHA}}', c.shootDate)
+                .replace('{{PROYECTO}}', c.projectName)
+                .replace('{{LUGAR}}', c.location)
+                .replace('{{COMPENSACION}}', c.compensation)
+                .replace('{{USOS}}', c.license);
+
+            const container = document.getElementById('contract-document-preview');
+
+            let modelHtml = '';
+            if (c.status === 'signed' && c.modelData) {
+                const md = c.modelData;
+                modelHtml = `
+                    <div class="border-t border-zinc-200 pt-6 mt-4 flex flex-col gap-4">
+                        <h4 class="font-bold text-sm text-zinc-900">Model Information:</h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-700">
+                            <p><strong>Name:</strong> ${escapeHTML(md.fullName)}</p>
+                            <p><strong>CURP / INE:</strong> ${escapeHTML(md.curp)}</p>
+                            <p><strong>Date of Birth:</strong> ${md.dob} | <strong>Gender:</strong> ${md.gender}</p>
+                            <p><strong>Phone:</strong> ${escapeHTML(md.phone)} | <strong>Email:</strong> ${escapeHTML(md.email)}</p>
+                            <p class="sm:col-span-2"><strong>Address:</strong> ${escapeHTML(md.address)}</p>
+                            ${md.ethnicity ? `<p class="sm:col-span-2"><strong>Ethnicity:</strong> ${escapeHTML(md.ethnicity)}</p>` : ''}
+                            ${md.guardianName ? `<p class="sm:col-span-2"><strong>Parent/Guardian:</strong> ${escapeHTML(md.guardianName)} (CURP: ${escapeHTML(md.guardianCurp)})</p>` : ''}
+                        </div>
+                        <div class="mt-4 p-4 border border-zinc-200 rounded-xl bg-zinc-50 flex flex-col items-center gap-2 max-w-xs">
+                            <img src="${md.signatureDataUrl}" alt="Model Signature" class="max-h-20 object-contain">
+                            <span class="text-[10px] text-zinc-400 font-mono">Model's Signature — Date: ${new Date(c.signedAt).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="flex items-center justify-between border-b border-zinc-200 pb-4">
+                    <div>
+                        <h2 class="font-bold text-lg text-zinc-900">MODEL RELEASE</h2>
+                        <p class="text-xs text-zinc-500 font-mono">Shoot Date: ${c.shootDate} | Release No.: ${c.releaseNo}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-mono bg-zinc-100 text-zinc-800 px-2.5 py-1 rounded-lg">Braiton Saldaña Studio</span>
+                    </div>
+                </div>
+                <div class="text-xs leading-relaxed text-zinc-700 whitespace-pre-line font-sans">${escapeHTML(terms)}</div>
+                ${modelHtml}
+            `;
+        }
+
+        // Signature Canvas Logic
         function setupCanvas() {
-            canvas = document.getElementById('signature-canvas');
-            if (!canvas) return;
-            ctx = canvas.getContext('2d');
-            const getPos = (e) => {
-                const r = canvas.getBoundingClientRect();
-                const x = e.touches ? e.touches[0].clientX : e.clientX;
-                const y = e.touches ? e.touches[0].clientY : e.clientY;
-                return { x: x - r.left, y: y - r.top };
-            };
-            const start = (e) => { isDrawing = true; hasSigned = true; const p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y); };
-            const move = (e) => { if (!isDrawing) return; if(e.cancelable) e.preventDefault(); const p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke(); };
-            const end = () => { isDrawing = false; };
+            signatureCanvas = document.getElementById('sig-canvas');
+            if (!signatureCanvas) return;
+            signatureCtx = signatureCanvas.getContext('2d');
+            resizeSignatureCanvas();
 
-            canvas.addEventListener('mousedown', start);
-            canvas.addEventListener('mousemove', move);
-            window.addEventListener('mouseup', end);
-            canvas.addEventListener('touchstart', start, {passive:false});
-            canvas.addEventListener('touchmove', move, {passive:false});
-            canvas.addEventListener('touchend', end);
+            window.addEventListener('resize', () => resizeSignatureCanvas());
+
+            signatureCanvas.addEventListener('mousedown', startDrawing);
+            signatureCanvas.addEventListener('mousemove', draw);
+            signatureCanvas.addEventListener('mouseup', stopDrawing);
+            signatureCanvas.addEventListener('mouseleave', stopDrawing);
+
+            signatureCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); });
+            signatureCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+            signatureCanvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); });
         }
 
-        function resizeCanvas() {
-            if (!canvas || !ctx) return;
-            const r = canvas.parentElement.getBoundingClientRect();
-            canvas.width = r.width * 2;
-            canvas.height = r.height * 2;
-            ctx.scale(2, 2);
-            ctx.strokeStyle = '#000';
-            ctx.lineWidth = 2.5;
-            hasSigned = false;
+        function resizeSignatureCanvas() {
+            if (!signatureCanvas) return;
+            const rect = signatureCanvas.getBoundingClientRect();
+            signatureCanvas.width = rect.width * window.devicePixelRatio;
+            signatureCanvas.height = rect.height * window.devicePixelRatio;
+            signatureCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            signatureCtx.strokeStyle = '#18181b';
+            signatureCtx.lineWidth = 2.5;
+            signatureCtx.lineCap = 'round';
+            signatureCtx.lineJoin = 'round';
         }
 
-        function clearSignaturePad() {
-            if (!canvas || !ctx) return;
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            hasSigned = false;
+        function getMousePos(e) {
+            const rect = signatureCanvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
         }
 
-        async function handleModelSignSubmit(e) {
-            e.preventDefault();
-            if (!activeContract || !hasSigned) {
-                showToast('Por favor traza tu firma.', 'error');
+        function startDrawing(e) {
+            isDrawing = true;
+            const pos = getMousePos(e);
+            signatureCtx.beginPath();
+            signatureCtx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const pos = getMousePos(e);
+            signatureCtx.lineTo(pos.x, pos.y);
+            signatureCtx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearSignature() {
+            if (!signatureCanvas) return;
+            signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+        }
+
+        function checkMinorAge() {
+            const dobVal = document.getElementById('model-dob').value;
+            if (!dobVal) return;
+            const dob = new Date(dobVal);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+
+            const guardianSection = document.getElementById('guardian-section');
+            if (age < 18) {
+                guardianSection.classList.remove('hidden');
+                guardianSection.classList.add('flex');
+            } else {
+                guardianSection.classList.remove('flex');
+                guardianSection.classList.add('hidden');
+            }
+        }
+
+        async function submitModelSignature() {
+            const fullName = document.getElementById('model-full-name').value.trim();
+            const dob = document.getElementById('model-dob').value;
+            const gender = document.getElementById('model-gender').value;
+            const curp = document.getElementById('model-curp').value.trim().toUpperCase();
+            const address = document.getElementById('model-address').value.trim();
+            const phone = document.getElementById('model-phone').value.trim();
+            const email = document.getElementById('model-email').value.trim();
+            const ethnicity = document.getElementById('model-ethnicity').value;
+            const guardianName = document.getElementById('guardian-name')?.value.trim() || '';
+            const guardianCurp = document.getElementById('guardian-curp')?.value.trim().toUpperCase() || '';
+
+            if (!fullName || !dob || !curp || !address || !phone || !email) {
+                showToast('Por favor completa todos los campos obligatorios.', 'error');
                 return;
             }
 
-            const modelData = {
-                fullName: document.getElementById('mod-fullname').value,
-                idNumber: document.getElementById('mod-idnumber').value,
-                dob: document.getElementById('mod-dob').value,
-                gender: document.getElementById('mod-gender').value,
-                phone: document.getElementById('mod-phone').value,
-                address: document.getElementById('mod-address').value
-            };
-
-            activeContract.status = 'signed';
-            activeContract.modelData = modelData;
-            activeContract.signatureDataUrl = canvas.toDataURL('image/png');
-            activeContract.signedAt = new Date().toISOString();
-
-            await saveContractToCloudOrLocal(activeContract);
-
-            openSigningView(activeContract, true);
-            showToast('¡Contrato firmado y sincronizado en la nube!', 'success');
-        }
-
-        function downloadPDF(idOrObj) {
-            const c = typeof idOrObj === 'object' ? idOrObj : contractsList.find(x => x.id === idOrObj) || activeContract;
-            if (!c) return;
-
-            if (!window.jspdf || !window.jspdf.jsPDF) {
-                window.print();
+            // Verificar si el canvas está vacío
+            const blank = document.createElement('canvas');
+            blank.width = signatureCanvas.width;
+            blank.height = signatureCanvas.height;
+            if (signatureCanvas.toDataURL() === blank.toDataURL()) {
+                showToast('Por favor introduce tu firma digital.', 'error');
                 return;
             }
 
+            const signatureDataUrl = signatureCanvas.toDataURL('image/png');
+            const contract = contractsList.find(c => c.id === activeContractId);
+            if (!contract) return;
+
+            contract.status = 'signed';
+            contract.signedAt = new Date().toISOString();
+            contract.modelData = {
+                fullName, dob, gender, curp, address, phone, email, ethnicity, guardianName, guardianCurp, signatureDataUrl
+            };
+
+            await saveContractToStorage(contract);
+            showToast('¡Contrato firmado y sincronizado con éxito!', 'success');
+            openSigningView(contract, true);
+        }
+
+        // PDF Export
+        async function downloadPDF(contractId) {
+            const c = contractsList.find(x => x.id === contractId);
+            if (!c || c.status !== 'signed') {
+                showToast('El contrato debe estar firmado para exportar PDF.', 'error');
+                return;
+            }
+
+            showToast('Generando PDF oficial...', 'info');
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-            let y = 15;
 
-            doc.setFont('helvetica', 'bold');
-            doc.setFontSize(14);
-            doc.text('MODEL RELEASE — BRAITON SALDAÑA', 15, y);
-            y += 8;
+            const tempDiv = document.createElement('div');
+            tempDiv.style.width = '800px';
+            tempDiv.style.padding = '40px';
+            tempDiv.style.background = '#ffffff';
+            tempDiv.style.color = '#18181b';
+            tempDiv.style.fontFamily = 'Inter, sans-serif';
 
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(8.5);
-            doc.text(`Shoot Date: ${c.shootDate} | Release No.: ${c.releaseNo}`, 15, y);
-            y += 6;
-            doc.text(`Project: ${c.projectName} | Location: ${c.location}`, 15, y);
-            y += 8;
+            let terms = DEFAULT_TERMS
+                .replace('{{FECHA}}', c.shootDate)
+                .replace('{{PROYECTO}}', c.projectName)
+                .replace('{{LUGAR}}', c.location)
+                .replace('{{COMPENSACION}}', c.compensation)
+                .replace('{{USOS}}', c.license);
 
-            const text = (c.contractTemplate || DEFAULT_TERMS)
-                .replace(/\{\{FOTOGRAFO\}\}/g, c.photographerName || 'Braiton Saldaña Valdez')
-                .replace(/\{\{MODELO\}\}/g, c.modelData?.fullName || '[MODEL]')
-                .replace(/\{\{PROYECTO\}\}/g, c.projectName)
-                .replace(/\{\{FECHA\}\}/g, c.shootDate)
-                .replace(/\{\{LUGAR\}\}/g, c.location)
-                .replace(/\{\{USO\}\}/g, c.usageType)
-                .replace(/\{\{COMPENSACION\}\}/g, c.compensation);
-            
-            const lines = doc.splitTextToSize(text, 180);
-            lines.forEach(l => {
-                if (y > 250) { doc.addPage(); y = 15; }
-                doc.text(l, 15, y);
-                y += 4.5;
-            });
+            tempDiv.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e4e4e7; padding-bottom:16px; margin-bottom:20px;">
+                    <div>
+                        <h2 style="font-size:20px; font-weight:bold; margin:0;">MODEL RELEASE</h2>
+                        <p style="font-size:11px; color:#71717a; font-family:monospace; margin:4px 0 0 0;">Shoot Date: ${c.shootDate} | Release No.: ${c.releaseNo}</p>
+                    </div>
+                    <div style="font-size:12px; font-weight:bold; font-family:monospace; background:#f4f4f5; padding:6px 12px; border-radius:8px;">Braiton Saldaña Studio</div>
+                </div>
+                <div style="font-size:11px; line-height:1.6; color:#3f3f46; white-space:pre-line; margin-bottom:24px;">${escapeHTML(terms)}</div>
+                <div style="border-top:1px solid #e4e4e7; padding-top:16px;">
+                    <h4 style="font-size:13px; font-weight:bold; margin-bottom:8px;">Model Information:</h4>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px; font-size:11px; color:#3f3f46;">
+                        <p><strong>Name:</strong> ${escapeHTML(c.modelData.fullName)}</p>
+                        <p><strong>CURP / INE:</strong> ${escapeHTML(c.modelData.curp)}</p>
+                        <p><strong>Date of Birth:</strong> ${c.modelData.dob} | <strong>Gender:</strong> ${c.modelData.gender}</p>
+                        <p><strong>Phone:</strong> ${escapeHTML(c.modelData.phone)} | <strong>Email:</strong> ${escapeHTML(c.modelData.email)}</p>
+                        <p style="grid-column: span 2;"><strong>Address:</strong> ${escapeHTML(c.modelData.address)}</p>
+                        ${c.modelData.ethnicity ? `<p style="grid-column: span 2;"><strong>Ethnicity:</strong> ${escapeHTML(c.modelData.ethnicity)}</p>` : ''}
+                        ${c.modelData.guardianName ? `<p style="grid-column: span 2;"><strong>Parent/Guardian:</strong> ${escapeHTML(c.modelData.guardianName)} (CURP: ${escapeHTML(c.modelData.guardianCurp)})</p>` : ''}
+                    </div>
+                    <div style="margin-top:16px; display:flex; flex-direction:column; align-items:flex-start;">
+                        <img src="${c.modelData.signatureDataUrl}" style="max-height:60px; object-fit:contain; border-bottom:1px solid #d4d4d8; padding-bottom:4px;">
+                        <span style="font-size:10px; color:#71717a; font-family:monospace; margin-top:4px;">Model's Signature — Date Signed: ${new Date(c.signedAt).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `;
 
-            y += 8;
-            if (y > 220) { doc.addPage(); y = 15; }
-
-            doc.setFont('helvetica', 'bold');
-            doc.text('Model Information:', 15, y);
-            y += 6;
-            doc.setFont('helvetica', 'normal');
-            doc.text(`Name: ${c.modelData?.fullName || '---'}`, 15, y);
-            doc.text(`CURP / INE: ${c.modelData?.idNumber || '---'}`, 100, y);
-            y += 6;
-            doc.text(`DOB: ${c.modelData?.dob || '---'} | Gender: ${c.modelData?.gender || '---'} | Tel: ${c.modelData?.phone || '---'}`, 15, y);
-            y += 6;
-            doc.text(`Address: ${c.modelData?.address || '---'}`, 15, y);
-            y += 10;
-
-            if (c.signatureDataUrl) {
-                if (y > 230) { doc.addPage(); y = 15; }
-                doc.rect(15, y, 70, 25);
-                doc.addImage(c.signatureDataUrl, 'PNG', 17, y + 2, 66, 21);
-                doc.text("Model's Signature", 15, y + 29);
-                doc.text(`Date Signed: ${c.shootDate}`, 100, y + 15);
+            document.body.appendChild(tempDiv);
+            try {
+                const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true });
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+                pdf.addImage(imgData, 'PNG', 0, 10, pdfWidth, pdfHeight);
+                pdf.save(`Model_Release_${c.releaseNo}_${c.modelData.fullName.replace(/\s+/g, '_')}.pdf`);
+                showToast('PDF descargado con éxito.', 'success');
+            } catch(e) {
+                showToast('Error al generar el PDF.', 'error');
             }
-
-            doc.save(`Model_Release_${c.releaseNo}_${(c.modelData?.fullName || 'Model').replace(/\s+/g, '_')}.pdf`);
-            showToast('PDF descargado.', 'success');
+            document.body.removeChild(tempDiv);
         }
 
-        function openBackupModal() {
-            document.getElementById('modal-title').textContent = 'Respaldo';
-            document.getElementById('modal-body').innerHTML = `<p class="mb-3">Exporta o importa tus contratos en formato JSON.</p>
-            <button onclick="exportJSON()" class="w-full py-2.5 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Descargar Respaldo JSON</button>`;
-            document.getElementById('modal-actions').innerHTML = `<button onclick="closeModal()" class="px-4 py-2 bg-zinc-100 dark:bg-studio-800 text-xs font-medium rounded-xl">Cerrar</button>`;
-            document.getElementById('custom-modal').classList.remove('hidden');
-            document.getElementById('custom-modal').classList.add('flex');
+        // Utilidades y Respaldo JSON
+        function exportJSONBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contractsList, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `braiton_saldana_releases_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+            showToast('Respaldo JSON descargado.', 'success');
         }
 
-        function exportJSON() {
-            const blob = new Blob([JSON.stringify(contractsList, null, 2)], {type: 'application/json'});
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a'); a.href = url; a.download = 'Braiton_Saldana_Backups.json'; a.click();
-            URL.revokeObjectURL(url);
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgCol = type === 'error' ? 'bg-red-600 text-white' : (type === 'success' ? 'bg-emerald-600 text-white' : 'bg-zinc-900 text-white');
+            toast.className = `px-4 py-3 rounded-xl shadow-lg text-xs font-semibold pointer-events-auto transition transform translate-y-2 opacity-0 ${bgCol}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => container.removeChild(toast), 300);
+            }, 3500);
         }
 
-        function closeModal() {
-            document.getElementById('custom-modal').classList.add('hidden');
-            document.getElementById('custom-modal').classList.remove('flex');
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
         }
 
-        function showToast(msg, type='info') {
-            const c = document.getElementById('toast-container');
-            const t = document.createElement('div');
-            t.className = `px-4 py-3 rounded-xl border shadow-xl text-xs font-medium ${type === 'error' ? 'bg-red-600 text-white' : 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-950'}`;
-            t.textContent = msg;
-            c.appendChild(t);
-            setTimeout(() => t.remove(), 3000);
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
         }
 
-        function escapeHTML(s) {
-            return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
         }
     </script>
 </body>
