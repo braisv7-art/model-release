@@ -170,6 +170,7 @@
             <div class="flex flex-wrap justify-center gap-3 pt-2">
                 <button type="button" id="btn-download-signed-pdf" class="px-6 py-3 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 font-semibold text-sm">Descargar PDF Certificado</button>
                 <button type="button" onclick="window.print()" class="px-5 py-3 rounded-xl bg-zinc-100 dark:bg-studio-800 font-medium text-sm">Imprimir</button>
+                <button type="button" onclick="syncAndReturnToAdmin()" class="px-5 py-3 rounded-xl bg-emerald-600 text-white font-semibold text-sm">Sincronizar con Panel / Volver</button>
             </div>
         </div>
 
@@ -222,10 +223,23 @@
         let activeContract = null;
         let canvas, ctx, isDrawing = false, hasSigned = false;
 
-        const DEFAULT_TERMS = `MODEL RELEASE — Braiton Saldaña
-Shoot Date: {{FECHA}} | Photographer: {{FOTOGRAFO}} | Shoot: {{PROYECTO}} | Location: {{LUGAR}}
+        const DEFAULT_TERMS = `MODEL RELEASE — BRAITON SALDAÑA
+Shoot Date: {{FECHA}}  |  Photographer/Filmmaker: {{FOTOGRAFO}}
+Description of Shoot: {{PROYECTO}}  |  Location of Shoot (City/State): {{LUGAR}}
 
-For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to Photographer and assigns the right to license and use photographs and likeness in all media worldwide in perpetuity for Commercial, Editorial and Stock use ({{USO}}). I release Photographer from any liability.`;
+For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received, and by signing this release I grant as follows:
+
+1. I irrevocably grant to Photographer/Filmmaker and its licensees, successors, and assigns ("Photographer/Filmmaker") the right to license and use the still or motion photographs or film taken of me including my voice, picture, portrait and likeness (the "Images") in any and all media and for any use whatsoever (except illegal or pornographic), including without limitation, art, stock, advertising, trade and promotion ({{USO}}), in perpetuity. Uses may include subject that may be controversial or sensitive including but are not limited to the use of an Image that involves or implies illegal activities, adverse medical conditions or procedures, other adverse health or mental health issues, substance abuse, drug use, welfare or economic aid, dating agencies, sexual preference, teen pregnancy, abortion and adoption, political or religious affiliation, smoking or alcohol usage, feminine hygiene, incontinence or impotence. If I should receive any print, negative, digital file, film or other copy, I shall only use it for my own personal use and shall not authorize anyone else to use it. I agree and acknowledge that all rights to the Images are owned by "Photographer/Filmmaker" including the right to copyright the Images.
+
+2. I agree that no advertisement, product or other material need be submitted to me for any further approval and the Photographer/Filmmaker shall be without liability to me for any distortion or illusionary effect or adverse result to me on account of the publication, distribution or broadcast of the Images. I agree that the Images may be combined with other material and may be cropped, altered or modified. I consent to the use of my name or a fictitious name, and consent to the publications of any of the ethnicities indicated below, but understand that other ethnicities may be associated with the Images by the Photographer/Filmmaker for descriptive purposes.
+
+3. I understand that my personal information will not be made publicly available but may be used as required or necessary directly in relation to the licensing of the Images and may be retained as long as necessary to fulfil this purpose, including by being shared with the licensees / assignees of the Photographer/ Filmmaker and transferred to countries with differing data protection and privacy laws where it may be stored, accessed and used.
+
+4. I release, discharge and agree to hold harmless the Photographer/Filmmaker and his/her licensees, sub-licensees, successors, and assigns ("Released Parties") from any liability arising out of or in connection with the use of the Images, including any and all claims for defamation and or and invasion of privacy or publicity. I acknowledge that the Released Parties are not responsible or liable for any unauthorized use, or piracy of the Images.
+
+5. I warrant that I am of full age and have every right to contract in my own name in the above regard; that I have read the above authorization, release and agreement, prior to its execution; and that I am fully familiar with the contents. This agreement shall be binding upon me, my heirs, successors, and assigns.
+
+6. I am an independent contractor and am not eligible for insurance or other benefits. I am solely responsible for my own taxes, insurance, benefits and costs and release Photographer/Filmmaker from any, and all, liability for any physical injury arising from the Shoot.`;
 
         window.addEventListener('DOMContentLoaded', () => {
             loadStorage();
@@ -242,7 +256,6 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
                     const jsonStr = decodeURIComponent(escape(atob(encodedPayload)));
                     activeContract = JSON.parse(jsonStr);
                     
-                    // Verificar si ya está firmado en el localStorage del fotógrafo si se abre en el mismo dispositivo o sincronizado
                     const localMatch = contractsList.find(c => c.id === activeContract.id);
                     if (localMatch && localMatch.status === 'signed') {
                         activeContract = localMatch;
@@ -448,13 +461,10 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
         function updateLiveContractPreview() {
             if (!activeContract) return;
             const name = document.getElementById('mod-fullname').value || '[MODEL]';
-            // Usar solo las cláusulas limpias sin repetir el título superior
             let rawTerms = activeContract.contractTemplate || DEFAULT_TERMS;
-            // Remover la línea inicial de título si estuviera repetida
-            rawTerms = rawTerms.replace(/^MODEL RELEASE.*\n/, '');
 
             document.getElementById('sign-contract-body').textContent = rawTerms
-                .replace(/\{\{FOTOGRAFO\}\}/g, activeContract.photographerName)
+                .replace(/\{\{FOTOGRAFO\}\}/g, activeContract.photographerName || 'Braiton Saldaña Valdez')
                 .replace(/\{\{MODELO\}\}/g, name)
                 .replace(/\{\{PROYECTO\}\}/g, activeContract.projectName)
                 .replace(/\{\{FECHA\}\}/g, activeContract.shootDate)
@@ -523,7 +533,7 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             activeContract.signatureDataUrl = canvas.toDataURL('image/png');
             activeContract.signedAt = new Date().toISOString();
 
-            // Guardar localmente en el dispositivo actual
+            // Guardar localmente
             let existingList = [];
             try { existingList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { existingList = []; }
             
@@ -536,22 +546,26 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             localStorage.setItem(STORAGE_KEY, JSON.stringify(existingList));
             contractsList = existingList;
 
-            // Mostrar banner de éxito y botón para que el fotógrafo pueda sincronizar o regresar a su panel si está en el mismo dispositivo
-            openSigningView(activeContract, true);
-            
-            // Si el fotógrafo abrió el link en su propio teléfono para que el modelo firme, agregamos un botón directo para volver al panel actualizado
-            const bannerActions = document.querySelector('#signed-success-banner div.flex');
-            if (!document.getElementById('btn-return-admin')) {
-                const backBtn = document.createElement('button');
-                backBtn.id = 'btn-return-admin';
-                backBtn.type = 'button';
-                backBtn.className = 'px-5 py-3 rounded-xl bg-studio-800 text-white font-medium text-sm';
-                backBtn.textContent = '← Volver al Panel del Estudio';
-                backBtn.onclick = () => switchToAdminView();
-                bannerActions.appendChild(backBtn);
-            }
+            // También guardar en localStorage compartido por ID para sincronizar si se abre en otra pestaña/dispositivo del mismo navegador
+            localStorage.setItem(`signed_sync_${activeContract.id}`, JSON.stringify(activeContract));
 
-            showToast('¡Contrato firmado correctamente!', 'success');
+            openSigningView(activeContract, true);
+            showToast('¡Contrato firmado y guardado correctamente!', 'success');
+        }
+
+        function syncAndReturnToAdmin() {
+            // Guardar o actualizar en la lista principal antes de volver
+            let existingList = [];
+            try { existingList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { existingList = []; }
+            const idx = existingList.findIndex(c => c.id === activeContract.id);
+            if (idx >= 0) {
+                existingList[idx] = activeContract;
+            } else {
+                existingList.unshift(activeContract);
+            }
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(existingList));
+            contractsList = existingList;
+            switchToAdminView();
         }
 
         function downloadPDF(idOrObj) {
@@ -567,7 +581,6 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
             let y = 15;
 
-            // Encabezado oficial limpio (sin duplicarse)
             doc.setFont('helvetica', 'bold');
             doc.setFontSize(14);
             doc.text('MODEL RELEASE — BRAITON SALDAÑA', 15, y);
@@ -580,10 +593,9 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             doc.text(`Project: ${c.projectName} | Location: ${c.location}`, 15, y);
             y += 8;
 
-            let cleanTemplate = c.contractTemplate.replace(/^MODEL RELEASE.*\n/, '');
-            const text = cleanTemplate
-                .replace(/\{\{FOTOGRAFO\}\}/g, c.photographerName)
-                .replace(/\{\{MODELO\}\}/g, c.modelData.fullName)
+            const text = (c.contractTemplate || DEFAULT_TERMS)
+                .replace(/\{\{FOTOGRAFO\}\}/g, c.photographerName || 'Braiton Saldaña Valdez')
+                .replace(/\{\{MODELO\}\}/g, c.modelData?.fullName || '[MODEL]')
                 .replace(/\{\{PROYECTO\}\}/g, c.projectName)
                 .replace(/\{\{FECHA\}\}/g, c.shootDate)
                 .replace(/\{\{LUGAR\}\}/g, c.location)
@@ -604,22 +616,23 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             doc.text('Model Information:', 15, y);
             y += 6;
             doc.setFont('helvetica', 'normal');
-            doc.text(`Name: ${c.modelData.fullName}`, 15, y);
-            doc.text(`CURP / INE: ${c.modelData.idNumber}`, 100, y);
+            doc.text(`Name: ${c.modelData?.fullName || '---'}`, 15, y);
+            doc.text(`CURP / INE: ${c.modelData?.idNumber || '---'}`, 100, y);
             y += 6;
-            doc.text(`DOB: ${c.modelData.dob} | Gender: ${c.modelData.gender} | Tel: ${c.modelData.phone}`, 15, y);
+            doc.text(`DOB: ${c.modelData?.dob || '---'} | Gender: ${c.modelData?.gender || '---'} | Tel: ${c.modelData?.phone || '---'}`, 15, y);
             y += 6;
-            doc.text(`Address: ${c.modelData.address}`, 15, y);
+            doc.text(`Address: ${c.modelData?.address || '---'}`, 15, y);
             y += 10;
 
             if (c.signatureDataUrl) {
+                if (y > 230) { doc.addPage(); y = 15; }
                 doc.rect(15, y, 70, 25);
                 doc.addImage(c.signatureDataUrl, 'PNG', 17, y + 2, 66, 21);
                 doc.text("Model's Signature", 15, y + 29);
                 doc.text(`Date Signed: ${c.shootDate}`, 100, y + 15);
             }
 
-            doc.save(`Model_Release_${c.releaseNo}_${c.modelData.fullName.replace(/\s+/g, '_')}.pdf`);
+            doc.save(`Model_Release_${c.releaseNo}_${(c.modelData?.fullName || 'Model').replace(/\s+/g, '_')}.pdf`);
             showToast('PDF descargado.', 'success');
         }
 
