@@ -511,17 +511,42 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             activeContract.signatureDataUrl = canvas.toDataURL('image/png');
             activeContract.signedAt = new Date().toISOString();
 
-            // Guardar en almacenamiento local si existe, o mantener para descarga
-            const idx = contractsList.findIndex(c => c.id === activeContract.id);
+            // Sincronizar en localStorage del dispositivo del fotógrafo / modelo
+            let existingList = [];
+            try { existingList = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) { existingList = []; }
+            
+            const idx = existingList.findIndex(c => c.id === activeContract.id);
             if (idx >= 0) {
-                contractsList[idx] = activeContract;
+                existingList[idx] = activeContract;
             } else {
-                contractsList.unshift(activeContract);
+                existingList.unshift(activeContract);
             }
-            saveStorage();
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(existingList));
+            contractsList = existingList;
+
+            // Actualizar payload en la URL actual para que si se recarga, mantenga el estado firmado
+            try {
+                const payloadObj = {
+                    id: activeContract.id,
+                    releaseNo: activeContract.releaseNo,
+                    projectName: activeContract.projectName,
+                    shootDate: activeContract.shootDate,
+                    location: activeContract.location,
+                    usageType: activeContract.usageType,
+                    compensation: activeContract.compensation,
+                    photographerName: activeContract.photographerName,
+                    contractTemplate: activeContract.contractTemplate,
+                    status: 'signed',
+                    modelData: activeContract.modelData,
+                    signatureDataUrl: activeContract.signatureDataUrl,
+                    signedAt: activeContract.signedAt
+                };
+                const base64Payload = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObj))));
+                window.history.replaceState({}, document.title, `?p=${base64Payload}`);
+            } catch(e) {}
 
             openSigningView(activeContract, true);
-            showToast('Contrato firmado correctamente. Puedes descargar tu PDF.', 'success');
+            showToast('¡Contrato firmado y sincronizado correctamente!', 'success');
         }
 
         function downloadPDF(idOrObj) {
