@@ -59,18 +59,32 @@
             </div>
         </div>
         <div class="flex items-center gap-2">
-            <button onclick="openCloudConfigModal()" id="btn-cloud-status" class="text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5">
+            <button id="btn-cloud-status" disabled class="text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5">
                 <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
                 <span id="cloud-status-text">Configurar Cloud</span>
             </button>
+            <button id="btn-logout" onclick="logoutAdmin()" class="hidden text-xs px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700">Cerrar sesión</button>
             <button onclick="toggleDarkMode()" class="p-2 rounded-xl border border-zinc-200 dark:border-studio-800 hover:bg-zinc-100 dark:hover:bg-studio-800 transition">
                 <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
             </button>
         </div>
     </header>
 
+
+    <section id="auth-screen" class="hidden flex-1 items-center justify-center p-5">
+      <form id="auth-form" class="w-full max-w-sm bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-7 shadow-sm flex flex-col gap-4">
+        <h2 class="text-xl font-bold">Acceso de administrador</h2>
+        <p class="text-sm text-zinc-500">Inicia sesión con tu cuenta de Supabase.</p>
+        <label class="text-sm">Correo electrónico<input id="auth-email" type="email" required autocomplete="username" class="mt-1 w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent"></label>
+        <label class="text-sm">Contraseña<input id="auth-password" type="password" required autocomplete="current-password" class="mt-1 w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent"></label>
+        <button id="auth-submit" type="submit" class="bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 rounded-xl p-3 font-semibold">Iniciar sesión</button>
+        <p id="auth-error" role="alert" class="text-sm text-red-600"></p>
+      </form>
+    </section>
+    <section id="link-message" class="hidden flex-1 items-center justify-center p-6"><div class="max-w-lg rounded-2xl border p-6 bg-white dark:bg-studio-900"><h2 class="font-bold text-lg mb-3">Enlace de firma anterior</h2><p class="text-sm">Este enlace no está habilitado en la nueva versión segura. Solicita un enlace nuevo cuando el administrador active el sistema de firma.</p></div></section>
+
     <!-- App Body / Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col gap-6">
+    <main id="app-main" class="hidden flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col gap-6">
 
         <!-- Photographer Dashboard View -->
         <div id="view-dashboard" class="flex flex-col gap-6">
@@ -263,31 +277,6 @@
         </div>
     </div>
 
-    <!-- Modal Configuración Supabase -->
-    <div id="modal-cloud" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
-        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl max-w-lg w-full p-6 sm:p-8 flex flex-col gap-6 shadow-2xl">
-            <div class="flex items-center justify-between">
-                <h3 class="text-lg font-bold">Configuración Supabase Cloud</h3>
-                <button onclick="closeCloudConfigModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">✕</button>
-            </div>
-            <p class="text-xs text-zinc-500 dark:text-zinc-400">Conecta tu propia base de datos Supabase gratuita para que los contratos firmados desde el celular de tus modelos se sincronicen al instante en todos tus dispositivos.</p>
-            <div class="flex flex-col gap-4">
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Supabase Project URL</label>
-                    <input type="url" id="supabase-url-input" placeholder="https://xxxxxx.supabase.co" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none font-mono">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-zinc-400 mb-1">Supabase Anon Key</label>
-                    <input type="password" id="supabase-key-input" placeholder="eyJhbGciOi..." class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none font-mono">
-                </div>
-            </div>
-            <div class="flex items-center gap-3">
-                <button onclick="saveSupabaseConfig()" class="flex-1 py-3 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm hover:opacity-95 transition">Guardar y Conectar</button>
-                <button onclick="disconnectSupabase()" class="px-4 py-3 bg-red-500/10 text-red-600 rounded-xl font-bold text-sm hover:bg-red-500/20 transition">Desconectar</button>
-            </div>
-        </div>
-    </div>
-
     <!-- Application Script Logic -->
     <script>
         let contractsList = [];
@@ -297,7 +286,8 @@
         const SUPABASE_TABLE = 'contratos';
         // Para que TODOS los dispositivos usen el mismo proyecto, pega aquí la URL y la anon/publishable key
         // de tu proyecto Supabase antes de publicar. Nunca coloques aquí service_role/secret keys.
-        const SUPABASE_CONFIG = { url: '', anonKey: '' };
+        const SUPABASE_CONFIG = { url: 'https://oqvkpqeoemcwegstwjuv.supabase.co', anonKey: 'sb_publishable_ubd5WFl_IOKFtaa3T-gCRQ_xZrEvZMd' };
+        let currentUser = null;
         let signatureCanvas, signatureCtx, isDrawing = false;
 
         const DEFAULT_TERMS = `MODEL RELEASE — BRAITON SALDAÑA
@@ -320,53 +310,59 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
         window.addEventListener('DOMContentLoaded', async () => {
             initTheme();
-            initSupabaseFromStorage();
             setupCanvas();
             document.getElementById('inp-date').value = new Date().toISOString().split('T')[0];
-
-            await loadContracts();
-
-            const urlParams = new URLSearchParams(window.location.search);
-            const contractId = urlParams.get('id');
-            const dataParam = urlParams.get('data'); // Respaldo comprimido en URL
-
-            if (contractId || dataParam) {
-                let found = null;
-                if (contractId) {
-                    found = contractsList.find(c => c.id === contractId);
-                    if (!found && supabaseClient) {
-                        try {
-                            const { data, error } = await supabaseClient.from(SUPABASE_TABLE).select('*').eq('id', contractId).single();
-                            if (!error && data && data.data) {
-                                found = data.data;
-                            }
-                        } catch(e) {}
-                    }
-                }
-                if (!found && dataParam) {
-                    try {
-                        found = JSON.parse(decodeURIComponent(escape(atob(dataParam))));
-                    } catch(e) {
-                        try { found = JSON.parse(decodeURIComponent(atob(dataParam))); } catch(err) {}
-                    }
-                }
-
-                if (found) {
-                    // Asegurar que el contrato esté en la lista local para persistencia inmediata
-                    if (!contractsList.some(c => c.id === found.id)) {
-                        contractsList.push(found);
-                        localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
-                    }
-                    openSigningView(found, true);
-                } else {
-                    showToast('Contrato no encontrado o enlace inválido.', 'error');
-                }
+            document.getElementById('auth-form').addEventListener('submit', loginAdmin);
+            initSupabaseFromStorage();
+            if (!supabaseClient) { document.getElementById('auth-screen').classList.remove('hidden'); document.getElementById('auth-screen').classList.add('flex'); return; }
+            // Old ID/base64 links must never bypass authenticated access.
+            if (new URLSearchParams(location.search).has('id') || new URLSearchParams(location.search).has('data')) {
+                document.getElementById('link-message').classList.remove('hidden');
+                document.getElementById('link-message').classList.add('flex');
                 return;
-            } else {
-                updateStats();
-                renderContractsList();
             }
+            const { data: { user }, error } = await supabaseClient.auth.getUser();
+            if (error && !user) console.warn('Sesión no disponible:', error.message);
+            await showAdminSession(user);
+            supabaseClient.auth.onAuthStateChange((_event, session) => {
+                if (session?.user?.id !== currentUser?.id) void showAdminSession(session?.user || null);
+            });
         });
+
+        async function loginAdmin(event) {
+            event.preventDefault();
+            const btn = document.getElementById('auth-submit');
+            const errorBox = document.getElementById('auth-error');
+            errorBox.textContent = '';
+            btn.disabled = true;
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: document.getElementById('auth-email').value.trim(),
+                    password: document.getElementById('auth-password').value
+                });
+                if (error) throw error;
+                document.getElementById('auth-password').value = '';
+                await showAdminSession(data.user);
+            } catch (error) { errorBox.textContent = 'No se pudo iniciar sesión: ' + error.message; }
+            finally { btn.disabled = false; }
+        }
+
+        async function logoutAdmin() {
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            await showAdminSession(null);
+        }
+
+        async function showAdminSession(user) {
+            currentUser = user || null;
+            contractsList = [];
+            const loggedIn = !!currentUser;
+            document.getElementById('auth-screen').classList.toggle('hidden', loggedIn);
+            document.getElementById('auth-screen').classList.toggle('flex', !loggedIn);
+            document.getElementById('app-main').classList.toggle('hidden', !loggedIn);
+            document.getElementById('btn-logout').classList.toggle('hidden', !loggedIn);
+            if (loggedIn) await loadContracts();
+            else { updateStats(); renderContractsList(); setCloudStatus('offline', 'Inicia sesión'); }
+        }
 
         // Configuración Supabase
         function setCloudStatus(state, message) {
@@ -390,131 +386,37 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         }
 
         function initSupabaseFromStorage() {
-            let config = null;
-            try { config = JSON.parse(localStorage.getItem('supabase_config') || 'null'); } catch (e) {}
-            if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) {
-                config = { url: SUPABASE_CONFIG.url, key: SUPABASE_CONFIG.anonKey };
-            }
-            supabaseClient = null;
-            if (config && config.url && config.key && window.supabase?.createClient) {
-                try {
-                    supabaseClient = window.supabase.createClient(config.url, config.key);
-                    setCloudStatus('offline', 'Verificando Cloud…');
-                } catch(e) {
-                    setCloudStatus('error');
-                }
-            } else {
-                setCloudStatus('offline');
-            }
+            if (!window.supabase?.createClient) { setCloudStatus('error'); return; }
+            supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+            setCloudStatus('offline', 'Inicia sesión');
         }
-
-        function openCloudConfigModal() {
-            let config = JSON.parse(localStorage.getItem('supabase_config') || '{}');
-            if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) config = { url: SUPABASE_CONFIG.url, key: SUPABASE_CONFIG.anonKey };
-            if (config.url) document.getElementById('supabase-url-input').value = config.url;
-            if (config.key) document.getElementById('supabase-key-input').value = config.key;
-            document.getElementById('modal-cloud').classList.remove('hidden');
-            document.getElementById('modal-cloud').classList.add('flex');
-        }
-
-        function closeCloudConfigModal() {
-            document.getElementById('modal-cloud').classList.remove('flex');
-            document.getElementById('modal-cloud').classList.add('hidden');
-        }
-
-        async function saveSupabaseConfig() {
-            const url = document.getElementById('supabase-url-input').value.trim().replace(/\/$/, '');
-            const key = document.getElementById('supabase-key-input').value.trim();
-            if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) || !key) {
-                showToast('La URL debe ser https://TU-PROYECTO.supabase.co y la anon key no puede estar vacía.', 'error');
-                return;
-            }
-            if (!window.supabase?.createClient) {
-                showToast('No se pudo cargar la librería de Supabase. Revisa tu conexión o el hosting.', 'error');
-                return;
-            }
-            const candidate = window.supabase.createClient(url, key);
-            const { error } = await candidate.from(SUPABASE_TABLE).select('id').limit(1);
-            if (error) {
-                setCloudStatus('error');
-                showToast('No se pudo conectar: ' + error.message, 'error');
-                return;
-            }
-            localStorage.setItem('supabase_config', JSON.stringify({ url, key }));
-            supabaseClient = candidate;
-            setCloudStatus('connected');
-            closeCloudConfigModal();
-            showToast('Conexión verificada. Tabla contratos accesible.', 'success');
-            await loadContracts();
-        }
-
-        async function disconnectSupabase() {
-            localStorage.removeItem('supabase_config');
-            supabaseClient = null;
-            document.getElementById('cloud-status-dot').className = 'w-2 h-2 rounded-full bg-amber-500 animate-pulse';
-            document.getElementById('cloud-status-text').textContent = 'Configurar Cloud';
-            document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5';
-            closeCloudConfigModal();
-            showToast('Cloud desconectado. Trabajando localmente.', 'info');
-        }
+        function openCloudConfigModal() { showToast('La conexión está configurada para este proyecto.', 'info'); }
+        function closeCloudConfigModal() {}
+        function saveSupabaseConfig() { showToast('La conexión ya está configurada.', 'info'); }
+        function disconnectSupabase() { showToast('Usa Cerrar sesión para salir.', 'info'); }
 
         async function loadContracts() {
-            let local = [];
-            try { local = JSON.parse(localStorage.getItem('bs_contracts') || '[]'); } catch (e) { local = []; }
-            if (supabaseClient) {
-                const { data, error } = await supabaseClient.from(SUPABASE_TABLE).select('id,data');
-                if (error) {
-                    contractsList = local;
-                    setCloudStatus('error');
-                    showToast('Cloud no disponible: ' + error.message, 'error');
-                } else {
-                    const cloudMap = new Map();
-                    (data || []).forEach(row => { if (row.data?.id) cloudMap.set(row.data.id, row.data); });
-                    // Migra al Cloud los contratos locales que todavía no existen allí.
-                    for (const c of local) {
-                        if (!cloudMap.has(c.id)) {
-                            const { error: migrationError } = await supabaseClient.from(SUPABASE_TABLE).upsert({ id: c.id, data: c }, { onConflict: 'id' });
-                            if (!migrationError) cloudMap.set(c.id, c);
-                            else console.warn('No se pudo migrar el contrato ' + c.id, migrationError);
-                        }
-                    }
-                    contractsList = Array.from(cloudMap.values());
-                    setCloudStatus('connected');
-                }
-            } else {
-                contractsList = local;
-                setCloudStatus('offline');
-            }
-            localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
-            updateStats();
-            renderContractsList();
+            if (!supabaseClient || !currentUser) return;
+            const { data, error } = await supabaseClient.from(SUPABASE_TABLE)
+                .select('id,data').eq('owner_id', currentUser.id).order('created_at', { ascending: false });
+            if (error) { setCloudStatus('error'); showToast('Error al cargar contratos: ' + error.message, 'error'); return; }
+            contractsList = (data || []).filter(row => row.data && row.data.id).map(row => row.data);
+            setCloudStatus('connected');
+            updateStats(); renderContractsList();
         }
 
         async function saveContractToStorage(cObj) {
-            const idx = contractsList.findIndex(x => x.id === cObj.id);
-            if (idx >= 0) contractsList[idx] = cObj;
-            else contractsList.push(cObj);
-            localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
-
-            if (!supabaseClient) return { synced: false, error: new Error('Supabase no está configurado en este dispositivo.') };
-            try {
-                const { error } = await supabaseClient.from(SUPABASE_TABLE).upsert({ id: cObj.id, data: cObj }, { onConflict: 'id' });
-                if (error) {
-                    setCloudStatus('error');
-                    return { synced: false, error };
-                }
-                setCloudStatus('connected');
-                return { synced: true, error: null };
-            } catch (error) {
-                setCloudStatus('error');
-                return { synced: false, error };
-            }
+            if (!currentUser || !supabaseClient) return { synced: false, error: new Error('Inicia sesión primero.') };
+            const { error } = await supabaseClient.from(SUPABASE_TABLE)
+                .upsert({ id: cObj.id, data: cObj, owner_id: currentUser.id }, { onConflict: 'id' });
+            if (error) { setCloudStatus('error'); return { synced: false, error }; }
+            const idx = contractsList.findIndex(c => c.id === cObj.id);
+            if (idx < 0) contractsList.push(cObj); else contractsList[idx] = cObj;
+            setCloudStatus('connected');
+            updateStats(); renderContractsList();
+            return { synced: true, error: null };
         }
-
-        function saveLocalAndCloud(obj, sync = true) {
-            if (obj && sync) saveContractToStorage(obj);
-            else localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
-        }
+        function saveLocalAndCloud() { /* Cloud es la fuente de verdad. */ }
 
         // Dashboard & UI
         function updateStats() {
@@ -557,7 +459,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             container.innerHTML = filtered.map(c => {
                 const isSigned = c.status === 'signed';
                 const modelName = isSigned ? c.modelData.fullName : (c.modelPrefill || 'Pendiente de asignar');
-                const shortLink = `${window.location.href.split('?')[0]}?id=${c.id}`;
+                const shortLink = ''; // Los enlaces de firma requieren Edge Function.
 
                 return `
                     <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
@@ -573,7 +475,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                             ${isSigned ? `
                                 <button onclick="downloadPDF('${c.id}')" class="px-3.5 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold shadow-sm">PDF</button>
                             ` : `
-                                <button onclick='copySmartLink("${shortLink}", ${JSON.stringify(c)})' class="px-3.5 py-2 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 rounded-xl text-xs font-medium transition">Copiar Link</button>
+                                <button onclick="showToast('Enlaces de firma pendientes de activar con Edge Function.', 'info')" class="px-3.5 py-2 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 rounded-xl text-xs font-medium transition">Copiar Link</button>
                                 <button onclick="openSigningView(contractsList.find(x => x.id === '${c.id}'))" class="px-3.5 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Firmar</button>
                             `}
                             <button onclick="deleteContract('${c.id}')" class="p-2 text-zinc-400 hover:text-red-500 transition">🗑</button>
@@ -609,7 +511,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             }
 
             const newC = {
-                id: 'bs_' + Math.random().toString(36).substring(2, 10),
+                id: 'bs_' + crypto.randomUUID(),
                 releaseNo: releaseNo || '1',
                 shootDate: date,
                 projectName: project,
@@ -622,44 +524,23 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             };
 
             const saveResult = await saveContractToStorage(newC);
+            if (!saveResult.synced) { showToast('No se guardó el contrato: ' + saveResult.error.message, 'error'); return; }
             closeNewContractModal();
-            updateStats();
-            renderContractsList();
-            showToast(saveResult.synced ? 'Contrato creado y guardado en Cloud.' : 'Contrato creado solo en este navegador. Cloud no está sincronizado.', saveResult.synced ? 'success' : 'error');
+            showToast('Contrato creado y guardado en Cloud.', 'success');
 
-            const smartLink = `${window.location.href.split('?')[0]}?id=${newC.id}`;
-            copySmartLink(smartLink, newC);
+            // No generar enlaces por ID: falta la Edge Function con token seguro.
         }
 
         async function deleteContract(id) {
-            if (!confirm('¿Eliminar este contrato?')) return;
+            if (!currentUser || !confirm('¿Eliminar este contrato?')) return;
+            const { error } = await supabaseClient.from(SUPABASE_TABLE).delete().eq('id', id).eq('owner_id', currentUser.id);
+            if (error) { showToast('No se pudo eliminar: ' + error.message, 'error'); return; }
             contractsList = contractsList.filter(c => c.id !== id);
-            saveLocalAndCloud(null, false);
-            if (supabaseClient) {
-                try { await supabaseClient.from(SUPABASE_TABLE).delete().eq('id', id); } catch(e) {}
-            }
-            updateStats();
-            renderContractsList();
-            showToast('Contrato eliminado.', 'info');
+            updateStats(); renderContractsList(); showToast('Contrato eliminado.', 'info');
         }
 
         // Enlace Inteligente Corto con Respaldo Comprimido
-        function copySmartLink(url, contractObj) {
-            let smartLink = url;
-            if (contractObj && !supabaseClient) {
-                try {
-                    const compressed = btoa(unescape(encodeURIComponent(JSON.stringify(contractObj))));
-                    smartLink = `${window.location.href.split('?')[0]}?id=${contractObj.id}&data=${compressed}`;
-                } catch(e) {}
-            }
-            const t = document.createElement('textarea');
-            t.value = smartLink;
-            document.body.appendChild(t);
-            t.select();
-            document.execCommand('copy');
-            document.body.removeChild(t);
-            showToast('¡Enlace corto copiado al portapapeles!', 'success');
-        }
+        function copySmartLink() { showToast('Los enlaces seguros se habilitarán con la Edge Function.', 'info'); }
 
         // Firma y Vista de Contrato
         function openSigningView(contract, isRemote = false) {
@@ -830,6 +711,8 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         }
 
         async function submitModelSignature() {
+            showToast('La firma estará disponible cuando se active la Edge Function segura.', 'error');
+            return;
             const fullName = document.getElementById('model-full-name').value.trim();
             const dob = document.getElementById('model-dob').value;
             const gender = document.getElementById('model-gender').value;
