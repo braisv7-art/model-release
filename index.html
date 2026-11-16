@@ -285,30 +285,27 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
             const urlParams = new URLSearchParams(window.location.search);
             const contractId = urlParams.get('id');
-            const encodedPayload = urlParams.get('p');
-
-            if (encodedPayload) {
-                try {
-                    const jsonStr = decodeURIComponent(escape(atob(encodedPayload)));
-                    activeContract = JSON.parse(jsonStr);
-                    const cloudMatch = contractsList.find(c => c.id === activeContract.id);
-                    if (cloudMatch && cloudMatch.status === 'signed') {
-                        activeContract = cloudMatch;
-                    }
-                    openSigningView(activeContract, true);
-                    return;
-                } catch(e) {
-                    console.error('Error decodificando payload de URL', e);
-                }
-            }
 
             if (contractId) {
-                const found = contractsList.find(c => c.id === contractId);
-                if (found) {
-                    openSigningView(found);
-                } else {
-                    showToast('Contrato no encontrado en la nube.', 'error');
+                // Buscar el contrato por ID corto en la nube/local
+                let found = contractsList.find(c => c.id === contractId);
+                if (!found && supabaseClient) {
+                    try {
+                        const { data, error } = await supabaseClient.from('contracts').select('*').eq('id', contractId).single();
+                        if (data && data.data) {
+                            found = data.data;
+                        }
+                    } catch(e) {
+                        console.error('Error buscando contrato en Supabase', e);
+                    }
                 }
+
+                if (found) {
+                    openSigningView(found, true);
+                } else {
+                    showToast('Contrato no encontrado o enlace inválido.', 'error');
+                }
+                return;
             } else {
                 updateStats();
                 renderContractsList();
@@ -448,8 +445,8 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 const isSigned = c.status === 'signed';
                 const modelName = isSigned ? c.modelData.fullName : (c.modelPrefill || 'Pendiente');
                 
-                const base64Payload = btoa(unescape(encodeURIComponent(JSON.stringify(c))));
-                const link = `${window.location.href.split('?')[0]}?p=${base64Payload}`;
+                // Enlace corto limpio usando únicamente el ID único
+                const link = `${window.location.href.split('?')[0]}?id=${c.id}`;
 
                 return `
                     <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
