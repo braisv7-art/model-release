@@ -285,13 +285,13 @@
         let activeContractId = null;
         let supabaseClient = null;
         const SUPABASE_TABLE = 'contratos';
-        const SIGNING_ENDPOINT = SUPABASE_CONFIG.url + '/functions/v1/model-release-signing';
         let remoteToken = null;
         let remoteContract = null;
         let signatureTouched = false;
         // Para que TODOS los dispositivos usen el mismo proyecto, pega aquí la URL y la anon/publishable key
         // de tu proyecto Supabase antes de publicar. Nunca coloques aquí service_role/secret keys.
         const SUPABASE_CONFIG = { url: 'https://oqvkpqeoemcwegstwjuv.supabase.co', anonKey: 'sb_publishable_ubd5WFl_IOKFtaa3T-gCRQ_xZrEvZMd' };
+        const SIGNING_ENDPOINT = SUPABASE_CONFIG.url + '/functions/v1/model-release-signing';
         let currentUser = null;
         let signatureCanvas, signatureCtx, isDrawing = false;
 
@@ -565,12 +565,24 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 const result = await signingRequest({ action: 'create-link', id }, sessionData.session.access_token);
                 const url = new URL(window.location.pathname, window.location.href);
                 url.searchParams.set('token', result.token);
-                try { await navigator.clipboard.writeText(url.href); }
-                catch (_) {
-                    const input = document.createElement('textarea'); input.value = url.href;
-                    document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove();
+                let copied = false;
+                try {
+                    if (navigator.clipboard?.writeText) {
+                        await navigator.clipboard.writeText(url.href);
+                        copied = true;
+                    }
+                } catch (_) {}
+                if (!copied) {
+                    const input = document.createElement('textarea');
+                    input.value = url.href;
+                    input.style.position = 'fixed'; input.style.opacity = '0';
+                    document.body.appendChild(input);
+                    input.focus(); input.select();
+                    try { copied = document.execCommand('copy'); } catch (_) {}
+                    input.remove();
                 }
-                showToast('Enlace privado copiado. Generar otro revoca el anterior.', 'success');
+                if (copied) showToast('Enlace privado copiado. Generar otro revoca el anterior.', 'success');
+                else window.prompt('Copia este enlace privado (Ctrl+C):', url.href);
             } catch (error) { showToast('No se pudo generar el enlace: ' + error.message, 'error'); }
         }
 
