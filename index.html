@@ -235,6 +235,20 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
 
             const urlParams = new URLSearchParams(window.location.search);
             const contractId = urlParams.get('id');
+            const encodedPayload = urlParams.get('p');
+
+            if (encodedPayload) {
+                try {
+                    // Decodificar contrato viajando directamente en la URL
+                    const jsonStr = decodeURIComponent(escape(atob(encodedPayload)));
+                    activeContract = JSON.parse(jsonStr);
+                    openSigningView(activeContract, true);
+                    return;
+                } catch(e) {
+                    console.error('Error decodificando payload de URL', e);
+                }
+            }
+
             if (contractId) {
                 const found = contractsList.find(c => c.id === contractId);
                 if (found) {
@@ -304,7 +318,23 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             container.innerHTML = filtered.map(c => {
                 const isSigned = c.status === 'signed';
                 const modelName = isSigned ? c.modelData.fullName : (c.modelPrefill || 'Pendiente');
-                const link = `${window.location.href.split('?')[0]}?id=${c.id}`;
+                
+                // Generar enlace compacto autocontenido con payload en base64
+                const payloadObj = {
+                    id: c.id,
+                    releaseNo: c.releaseNo,
+                    projectName: c.projectName,
+                    shootDate: c.shootDate,
+                    location: c.location,
+                    usageType: c.usageType,
+                    compensation: c.compensation,
+                    photographerName: c.photographerName,
+                    contractTemplate: c.contractTemplate,
+                    status: c.status,
+                    modelPrefill: c.modelPrefill
+                };
+                const base64Payload = btoa(unescape(encodeURIComponent(JSON.stringify(payloadObj))));
+                const link = `${window.location.href.split('?')[0]}?p=${base64Payload}`;
 
                 return `
                     <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -341,7 +371,6 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
 
         function handleCreateContract(e) {
             e.preventDefault();
-            // ID ultra corto de 4 caracteres aleatorios
             const id = 'bs_' + Math.random().toString(36).substring(2, 6);
             const releaseNo = contractsList.length + 1;
             const newC = {
@@ -361,7 +390,7 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             saveStorage();
             closeNewContractModal();
             renderContractsList();
-            showToast('Contrato creado con enlace corto.', 'success');
+            showToast('Contrato creado con enlace autocontenido.', 'success');
         }
 
         function copyLink(url) {
@@ -371,7 +400,7 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             t.select();
             document.execCommand('copy');
             document.body.removeChild(t);
-            showToast('Enlace corto copiado al portapapeles.', 'success');
+            showToast('Enlace copiado al portapapeles. Funciona en cualquier celular.', 'success');
         }
 
         function deleteContract(id) {
@@ -382,11 +411,16 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             showToast('Contrato eliminado.', 'info');
         }
 
-        function openSigningView(contract) {
+        function openSigningView(contract, isExternal = false) {
             activeContract = contract;
             document.getElementById('admin-view').classList.add('hidden');
             document.getElementById('signing-view').classList.remove('hidden');
-            document.getElementById('btn-back-admin').classList.remove('hidden');
+            
+            if (isExternal) {
+                document.getElementById('btn-back-admin').classList.add('hidden');
+            } else {
+                document.getElementById('btn-back-admin').classList.remove('hidden');
+            }
 
             if (contract.status === 'signed') {
                 document.getElementById('signing-form-container').classList.add('hidden');
@@ -477,16 +511,21 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
             activeContract.signatureDataUrl = canvas.toDataURL('image/png');
             activeContract.signedAt = new Date().toISOString();
 
+            // Guardar en almacenamiento local si existe, o mantener para descarga
             const idx = contractsList.findIndex(c => c.id === activeContract.id);
-            if (idx >= 0) contractsList[idx] = activeContract;
+            if (idx >= 0) {
+                contractsList[idx] = activeContract;
+            } else {
+                contractsList.unshift(activeContract);
+            }
             saveStorage();
 
-            openSigningView(activeContract);
-            showToast('Contrato firmado correctamente.', 'success');
+            openSigningView(activeContract, true);
+            showToast('Contrato firmado correctamente. Puedes descargar tu PDF.', 'success');
         }
 
-        function downloadPDF(id) {
-            const c = contractsList.find(x => x.id === id);
+        function downloadPDF(idOrObj) {
+            const c = typeof idOrObj === 'object' ? idOrObj : contractsList.find(x => x.id === idOrObj) || activeContract;
             if (!c) return;
 
             if (!window.jspdf || !window.jspdf.jsPDF) {
@@ -546,8 +585,8 @@ For good and valuable consideration ({{COMPENSACION}}), I irrevocably grant to P
 
         function openBackupModal() {
             document.getElementById('modal-title').textContent = 'Respaldo';
-            document.getElementById('modal-body').innerHTML = `<p>Exporta o importa tus contratos en formato JSON.</p>
-            <button onclick="exportJSON()" class="w-full py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Descargar Respaldo JSON</button>`;
+            document.getElementById('modal-body').innerHTML = `<p class="mb-3">Exporta o importa tus contratos en formato JSON.</p>
+            <button onclick="exportJSON()" class="w-full py-2.5 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Descargar Respaldo JSON</button>`;
             document.getElementById('modal-actions').innerHTML = `<button onclick="closeModal()" class="px-4 py-2 bg-zinc-100 dark:bg-studio-800 text-xs font-medium rounded-xl">Cerrar</button>`;
             document.getElementById('custom-modal').classList.remove('hidden');
             document.getElementById('custom-modal').classList.add('flex');
