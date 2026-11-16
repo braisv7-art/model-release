@@ -332,8 +332,10 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                     found = contractsList.find(c => c.id === contractId);
                     if (!found && supabaseClient) {
                         try {
-                            const { data } = await supabaseClient.from('contracts').select('*').eq('id', contractId).single();
-                            if (data && data.data) found = data.data;
+                            const { data, error } = await supabaseClient.from('contracts').select('*').eq('id', contractId).single();
+                            if (!error && data && data.data) {
+                                found = data.data;
+                            }
                         } catch(e) {}
                     }
                 }
@@ -346,6 +348,11 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 }
 
                 if (found) {
+                    // Asegurar que el contrato esté en la lista local para persistencia inmediata
+                    if (!contractsList.some(c => c.id === found.id)) {
+                        contractsList.push(found);
+                        localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
+                    }
                     openSigningView(found, true);
                 } else {
                     showToast('Contrato no encontrado o enlace inválido.', 'error');
