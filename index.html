@@ -294,6 +294,10 @@
         let currentFilter = 'all';
         let activeContractId = null;
         let supabaseClient = null;
+        const SUPABASE_TABLE = 'contratos';
+        // Para que TODOS los dispositivos usen el mismo proyecto, pega aquí la URL y la anon/publishable key
+        // de tu proyecto Supabase antes de publicar. Nunca coloques aquí service_role/secret keys.
+        const SUPABASE_CONFIG = { url: '', anonKey: '' };
         let signatureCanvas, signatureCtx, isDrawing = false;
 
         const DEFAULT_TERMS = `MODEL RELEASE — BRAITON SALDAÑA
@@ -332,7 +336,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                     found = contractsList.find(c => c.id === contractId);
                     if (!found && supabaseClient) {
                         try {
-                            const { data, error } = await supabaseClient.from('contracts').select('*').eq('id', contractId).single();
+                            const { data, error } = await supabaseClient.from(SUPABASE_TABLE).select('*').eq('id', contractId).single();
                             if (!error && data && data.data) {
                                 found = data.data;
                             }
@@ -365,20 +369,48 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         });
 
         // Configuración Supabase
+        function setCloudStatus(state, message) {
+            const dot = document.getElementById('cloud-status-dot');
+            const label = document.getElementById('cloud-status-text');
+            const button = document.getElementById('btn-cloud-status');
+            if (!dot || !label || !button) return;
+            if (state === 'connected') {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                label.textContent = 'Cloud conectado';
+                button.className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 transition flex items-center gap-1.5';
+            } else if (state === 'error') {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500';
+                label.textContent = 'Error Cloud';
+                button.className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-red-500/10 text-red-600 border border-red-500/25 transition flex items-center gap-1.5';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+                label.textContent = message || 'Cloud sin configurar';
+                button.className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5';
+            }
+        }
+
         function initSupabaseFromStorage() {
-            let config = JSON.parse(localStorage.getItem('supabase_config') || 'null');
-            if (config && config.url && config.key) {
+            let config = null;
+            try { config = JSON.parse(localStorage.getItem('supabase_config') || 'null'); } catch (e) {}
+            if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) {
+                config = { url: SUPABASE_CONFIG.url, key: SUPABASE_CONFIG.anonKey };
+            }
+            supabaseClient = null;
+            if (config && config.url && config.key && window.supabase?.createClient) {
                 try {
                     supabaseClient = window.supabase.createClient(config.url, config.key);
-                    document.getElementById('cloud-status-dot').className = 'w-2 h-2 rounded-full bg-emerald-500';
-                    document.getElementById('cloud-status-text').textContent = 'Cloud Activo';
-                    document.getElementById('btn-cloud-status').className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 transition flex items-center gap-1.5';
-                } catch(e) {}
+                    setCloudStatus('offline', 'Verificando Cloud…');
+                } catch(e) {
+                    setCloudStatus('error');
+                }
+            } else {
+                setCloudStatus('offline');
             }
         }
 
         function openCloudConfigModal() {
             let config = JSON.parse(localStorage.getItem('supabase_config') || '{}');
+            if (SUPABASE_CONFIG.url && SUPABASE_CONFIG.anonKey) config = { url: SUPABASE_CONFIG.url, key: SUPABASE_CONFIG.anonKey };
             if (config.url) document.getElementById('supabase-url-input').value = config.url;
             if (config.key) document.getElementById('supabase-key-input').value = config.key;
             document.getElementById('modal-cloud').classList.remove('hidden');
@@ -391,16 +423,28 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         }
 
         async function saveSupabaseConfig() {
-            const url = document.getElementById('supabase-url-input').value.trim();
+            const url = document.getElementById('supabase-url-input').value.trim().replace(/\/$/, '');
             const key = document.getElementById('supabase-key-input').value.trim();
-            if (!url || !key) {
-                showToast('Introduce URL y Key válidas.', 'error');
+            if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) || !key) {
+                showToast('La URL debe ser https://TU-PROYECTO.supabase.co y la anon key no puede estar vacía.', 'error');
+                return;
+            }
+            if (!window.supabase?.createClient) {
+                showToast('No se pudo cargar la librería de Supabase. Revisa tu conexión o el hosting.', 'error');
+                return;
+            }
+            const candidate = window.supabase.createClient(url, key);
+            const { error } = await candidate.from(SUPABASE_TABLE).select('id').limit(1);
+            if (error) {
+                setCloudStatus('error');
+                showToast('No se pudo conectar: ' + error.message, 'error');
                 return;
             }
             localStorage.setItem('supabase_config', JSON.stringify({ url, key }));
-            initSupabaseFromStorage();
+            supabaseClient = candidate;
+            setCloudStatus('connected');
             closeCloudConfigModal();
-            showToast('Cloud configurado correctamente.', 'success');
+            showToast('Conexión verificada. Tabla contratos accesible.', 'success');
             await loadContracts();
         }
 
@@ -415,25 +459,33 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         }
 
         async function loadContracts() {
-            let local = JSON.parse(localStorage.getItem('bs_contracts') || '[]');
+            let local = [];
+            try { local = JSON.parse(localStorage.getItem('bs_contracts') || '[]'); } catch (e) { local = []; }
             if (supabaseClient) {
-                try {
-                    const { data, error } = await supabaseClient.from('contracts').select('*');
-                    if (!error && data) {
-                        const cloudMap = new Map();
-                        data.forEach(row => { if (row.data) cloudMap.set(row.data.id, row.data); });
-                        local.forEach(c => { if (!cloudMap.has(c.id)) cloudMap.set(c.id, c); });
-                        contractsList = Array.from(cloudMap.values());
-                    } else {
-                        contractsList = local;
-                    }
-                } catch(e) {
+                const { data, error } = await supabaseClient.from(SUPABASE_TABLE).select('id,data');
+                if (error) {
                     contractsList = local;
+                    setCloudStatus('error');
+                    showToast('Cloud no disponible: ' + error.message, 'error');
+                } else {
+                    const cloudMap = new Map();
+                    (data || []).forEach(row => { if (row.data?.id) cloudMap.set(row.data.id, row.data); });
+                    // Migra al Cloud los contratos locales que todavía no existen allí.
+                    for (const c of local) {
+                        if (!cloudMap.has(c.id)) {
+                            const { error: migrationError } = await supabaseClient.from(SUPABASE_TABLE).upsert({ id: c.id, data: c }, { onConflict: 'id' });
+                            if (!migrationError) cloudMap.set(c.id, c);
+                            else console.warn('No se pudo migrar el contrato ' + c.id, migrationError);
+                        }
+                    }
+                    contractsList = Array.from(cloudMap.values());
+                    setCloudStatus('connected');
                 }
             } else {
                 contractsList = local;
+                setCloudStatus('offline');
             }
-            saveLocalAndCloud(null, false);
+            localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
             updateStats();
             renderContractsList();
         }
@@ -442,13 +494,20 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             const idx = contractsList.findIndex(x => x.id === cObj.id);
             if (idx >= 0) contractsList[idx] = cObj;
             else contractsList.push(cObj);
-
             localStorage.setItem('bs_contracts', JSON.stringify(contractsList));
 
-            if (supabaseClient) {
-                try {
-                    await supabaseClient.from('contracts').upsert({ id: cObj.id, data: cObj });
-                } catch(e) {}
+            if (!supabaseClient) return { synced: false, error: new Error('Supabase no está configurado en este dispositivo.') };
+            try {
+                const { error } = await supabaseClient.from(SUPABASE_TABLE).upsert({ id: cObj.id, data: cObj }, { onConflict: 'id' });
+                if (error) {
+                    setCloudStatus('error');
+                    return { synced: false, error };
+                }
+                setCloudStatus('connected');
+                return { synced: true, error: null };
+            } catch (error) {
+                setCloudStatus('error');
+                return { synced: false, error };
             }
         }
 
@@ -562,11 +621,11 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 createdAt: new Date().toISOString()
             };
 
-            await saveContractToStorage(newC);
+            const saveResult = await saveContractToStorage(newC);
             closeNewContractModal();
             updateStats();
             renderContractsList();
-            showToast('Contrato creado exitosamente.', 'success');
+            showToast(saveResult.synced ? 'Contrato creado y guardado en Cloud.' : 'Contrato creado solo en este navegador. Cloud no está sincronizado.', saveResult.synced ? 'success' : 'error');
 
             const smartLink = `${window.location.href.split('?')[0]}?id=${newC.id}`;
             copySmartLink(smartLink, newC);
@@ -577,7 +636,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             contractsList = contractsList.filter(c => c.id !== id);
             saveLocalAndCloud(null, false);
             if (supabaseClient) {
-                try { await supabaseClient.from('contracts').delete().eq('id', id); } catch(e) {}
+                try { await supabaseClient.from(SUPABASE_TABLE).delete().eq('id', id); } catch(e) {}
             }
             updateStats();
             renderContractsList();
@@ -587,7 +646,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         // Enlace Inteligente Corto con Respaldo Comprimido
         function copySmartLink(url, contractObj) {
             let smartLink = url;
-            if (contractObj) {
+            if (contractObj && !supabaseClient) {
                 try {
                     const compressed = btoa(unescape(encodeURIComponent(JSON.stringify(contractObj))));
                     smartLink = `${window.location.href.split('?')[0]}?id=${contractObj.id}&data=${compressed}`;
@@ -786,6 +845,14 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 showToast('Por favor completa todos los campos obligatorios.', 'error');
                 return;
             }
+            const birthDate = new Date(dob + 'T00:00:00');
+            const now = new Date();
+            let age = now.getFullYear() - birthDate.getFullYear();
+            if (now.getMonth() < birthDate.getMonth() || (now.getMonth() === birthDate.getMonth() && now.getDate() < birthDate.getDate())) age--;
+            if (age < 18 && (!guardianName || !guardianCurp)) {
+                showToast('Para un modelo menor de edad, completa los datos del padre o tutor legal.', 'error');
+                return;
+            }
 
             // Verificar si el canvas está vacío
             const blank = document.createElement('canvas');
@@ -806,8 +873,12 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 fullName, dob, gender, curp, address, phone, email, ethnicity, guardianName, guardianCurp, signatureDataUrl
             };
 
-            await saveContractToStorage(contract);
-            showToast('¡Contrato firmado y sincronizado con éxito!', 'success');
+            const saveResult = await saveContractToStorage(contract);
+            if (saveResult.synced) {
+                showToast('Firma guardada y sincronizada con Cloud.', 'success');
+            } else {
+                showToast('Firma guardada SOLO en este dispositivo. No llegó al panel: configura Supabase en este dispositivo y vuelve a sincronizar.', 'error');
+            }
             openSigningView(contract, true);
         }
 
