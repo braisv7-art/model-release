@@ -99,6 +99,7 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                         Nuevo Contrato
                     </button>
+                    <button onclick="openPhotographerSignature()" class="px-3.5 py-2.5 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 dark:hover:bg-studio-700 rounded-xl text-sm font-medium transition">Mi firma</button>
                     <button onclick="exportJSONBackup()" class="px-3.5 py-2.5 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 dark:hover:bg-studio-700 rounded-xl text-sm font-medium transition">Respaldo JSON</button>
                 </div>
             </div>
@@ -287,6 +288,20 @@
     </div>
 
     <!-- Application Script Logic -->
+    <div id="photographer-signature-modal" class="hidden fixed inset-0 z-[100] bg-black/60 p-4 items-center justify-center">
+      <div class="bg-white dark:bg-studio-900 rounded-2xl p-6 w-full max-w-xl shadow-2xl">
+        <h3 class="font-bold text-xl mb-2">Firma del fotógrafo</h3>
+        <p class="text-sm text-zinc-500 mb-4">Dibuja tu firma. Se guardará en tu perfil de Supabase para usarla en los PDF que descargues.</p>
+        <canvas id="photographer-signature-canvas" width="800" height="260" style="width:100%;height:180px;touch-action:none;background:white;border:1px solid #d4d4d8;border-radius:10px;display:block"></canvas>
+        <p id="photographer-signature-status" class="text-sm text-zinc-500 mt-3" role="status"></p>
+        <div class="flex flex-wrap gap-2 justify-end mt-4">
+          <button type="button" onclick="clearPhotographerSignatureCanvas()" class="px-3 py-2 rounded-lg border">Limpiar</button>
+          <button type="button" onclick="closePhotographerSignature()" class="px-3 py-2 rounded-lg border">Cancelar</button>
+          <button type="button" onclick="savePhotographerSignature()" id="photographer-signature-save" class="px-4 py-2 rounded-lg bg-zinc-900 text-white">Guardar firma</button>
+        </div>
+        <button type="button" onclick="removePhotographerSignature()" class="text-xs text-red-600 mt-4 underline">Eliminar firma guardada</button>
+      </div>
+    </div>
     <script>
         let contractsList = [];
         let currentFilter = 'all';
@@ -301,6 +316,9 @@
         const SUPABASE_CONFIG = { url: 'https://oqvkpqeoemcwegstwjuv.supabase.co', anonKey: 'sb_publishable_ubd5WFl_IOKFtaa3T-gCRQ_xZrEvZMd' };
         const SIGNING_ENDPOINT = SUPABASE_CONFIG.url + '/functions/v1/model-release-signing';
         let currentUser = null;
+        let photographerSignatureDataUrl = '';
+        let photographerSignatureDrawn = false;
+        let photographerCanvasReady = false;
         let signatureCanvas, signatureCtx, isDrawing = false;
 
         const DEFAULT_TERMS = `MODEL RELEASE — BRAITON SALDAÑA
@@ -370,6 +388,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
         async function showAdminSession(user) {
             currentUser = user || null;
+            photographerSignatureDataUrl = typeof user?.user_metadata?.photographer_signature_png === 'string' ? user.user_metadata.photographer_signature_png : '';
             contractsList = [];
             const loggedIn = !!currentUser;
             document.getElementById('auth-screen').classList.toggle('hidden', loggedIn);
@@ -893,6 +912,74 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
         }
 
+        function setupPhotographerCanvas() {
+            if (photographerCanvasReady) return;
+            const canvas = document.getElementById('photographer-signature-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#18181b'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            let drawing = false;
+            const point = e => { const r = canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}; };
+            canvas.addEventListener('pointerdown', e => {
+                drawing = true; photographerSignatureDrawn = true;
+                canvas.setPointerCapture(e.pointerId);
+                const p=point(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+.1,p.y+.1);ctx.stroke();
+            });
+            canvas.addEventListener('pointermove', e => { if (!drawing) return; const p=point(e); ctx.lineTo(p.x,p.y);ctx.stroke(); });
+            for (const event of ['pointerup','pointercancel','lostpointercapture']) canvas.addEventListener(event,()=>{drawing=false;});
+            photographerCanvasReady = true;
+        }
+        function openPhotographerSignature() {
+            if (!currentUser) return showToast('Inicia sesión para guardar tu firma.', 'error');
+            const modal = document.getElementById('photographer-signature-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setupPhotographerCanvas();
+            clearPhotographerSignatureCanvas();
+            if (photographerSignatureDataUrl) {
+                const img = new Image();
+                img.onload = () => document.getElementById('photographer-signature-canvas').getContext('2d').drawImage(img,0,0,800,260);
+                img.src = photographerSignatureDataUrl;
+                document.getElementById('photographer-signature-status').textContent = 'Firma guardada cargada. Puedes dibujar encima o limpiar para sustituirla.';
+            }
+        }
+        function closePhotographerSignature() {
+            const modal = document.getElementById('photographer-signature-modal');
+            modal.classList.add('hidden'); modal.classList.remove('flex');
+        }
+        function clearPhotographerSignatureCanvas() {
+            const canvas = document.getElementById('photographer-signature-canvas');
+            canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+            photographerSignatureDrawn = false;
+            document.getElementById('photographer-signature-status').textContent = 'Dibuja tu firma en el recuadro.';
+        }
+        async function savePhotographerSignature() {
+            if (!currentUser || !photographerSignatureDrawn) return showToast('Dibuja una firma antes de guardar.', 'error');
+            const btn = document.getElementById('photographer-signature-save');
+            btn.disabled = true;
+            try {
+                const canvas = document.getElementById('photographer-signature-canvas');
+                const png = canvas.toDataURL('image/png');
+                const {data,error} = await supabaseClient.auth.updateUser({data:{photographer_signature_png:png}});
+                if (error) throw error;
+                photographerSignatureDataUrl = png;
+                currentUser = data.user || currentUser;
+                showToast('Firma guardada en tu perfil.', 'success');
+                closePhotographerSignature();
+            } catch(e) { showToast('No se pudo guardar la firma: '+e.message,'error'); }
+            finally {btn.disabled=false;}
+        }
+        async function removePhotographerSignature() {
+            if (!currentUser || !confirm('¿Eliminar tu firma guardada?')) return;
+            try {
+                const {data,error} = await supabaseClient.auth.updateUser({data:{photographer_signature_png:null}});
+                if (error) throw error;
+                currentUser = data.user || currentUser;
+                photographerSignatureDataUrl = '';
+                clearPhotographerSignatureCanvas();
+                showToast('Firma eliminada del perfil.', 'success');
+                closePhotographerSignature();
+            } catch(e) {showToast('No se pudo eliminar la firma: '+e.message,'error');}
+        }
+
         // PDF Export
         async function downloadPDF(contractId) {
             const c = contractsList.find(x => x.id === contractId);
@@ -945,7 +1032,17 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                             <div style="font-size:10px; margin-top:6px; color:#52525b;">Model Photograph</div>
                         </div>` : ''}
                     </div>
-                    <div style="margin-top:16px; display:flex; flex-direction:column; align-items:flex-start;">
+                    <div style="display:flex;gap:30px;margin-top:22px;align-items:flex-start;page-break-inside:avoid;">
+                      <div style="flex:1;min-width:0;">
+                        <img src="${c.modelData.signatureDataUrl}" style="width:220px;max-height:65px;object-fit:contain;object-position:left bottom;display:block;">
+                        <div style="border-top:1px solid #a1a1aa;padding-top:5px;margin-top:5px;font-size:10px;color:#52525b;">Model Signature — ${new Date(c.signedAt).toLocaleDateString()}</div>
+                      </div>
+                      <div style="flex:1;min-width:0;">
+                        ${photographerSignatureDataUrl ? `<img src="${photographerSignatureDataUrl}" style="width:220px;max-height:65px;object-fit:contain;object-position:left bottom;display:block;">` : `<div style="height:65px;"></div>`}
+                        <div style="border-top:1px solid #a1a1aa;padding-top:5px;margin-top:5px;font-size:10px;color:#52525b;">Photographer Signature — Braiton Saldaña${photographerSignatureDataUrl ? '' : ' (pendiente)'}</div>
+                      </div>
+                    </div>
+                    <div style="display:none;">
                         <img src="${c.modelData.signatureDataUrl}" style="max-height:60px; object-fit:contain; border-bottom:1px solid #d4d4d8; padding-bottom:4px;">
                         <span style="font-size:10px; color:#71717a; font-family:monospace; margin-top:4px;">Model's Signature — Date Signed: ${new Date(c.signedAt).toLocaleDateString()}</span>
                     </div>
