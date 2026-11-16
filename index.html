@@ -2,6 +2,7 @@
 <html lang="es" class="h-full">
 <head>
     <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Braiton Saldaña — Model Release Cloud</title>
     <!-- Tailwind CSS -->
@@ -284,6 +285,10 @@
         let activeContractId = null;
         let supabaseClient = null;
         const SUPABASE_TABLE = 'contratos';
+        const SIGNING_ENDPOINT = SUPABASE_CONFIG.url + '/functions/v1/model-release-signing';
+        let remoteToken = null;
+        let remoteContract = null;
+        let signatureTouched = false;
         // Para que TODOS los dispositivos usen el mismo proyecto, pega aquí la URL y la anon/publishable key
         // de tu proyecto Supabase antes de publicar. Nunca coloques aquí service_role/secret keys.
         const SUPABASE_CONFIG = { url: 'https://oqvkpqeoemcwegstwjuv.supabase.co', anonKey: 'sb_publishable_ubd5WFl_IOKFtaa3T-gCRQ_xZrEvZMd' };
@@ -315,6 +320,8 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             document.getElementById('auth-form').addEventListener('submit', loginAdmin);
             initSupabaseFromStorage();
             if (!supabaseClient) { document.getElementById('auth-screen').classList.remove('hidden'); document.getElementById('auth-screen').classList.add('flex'); return; }
+            const signToken = new URLSearchParams(location.search).get('token');
+            if (signToken) { await openRemoteSigning(signToken); return; }
             // Old ID/base64 links must never bypass authenticated access.
             if (new URLSearchParams(location.search).has('id') || new URLSearchParams(location.search).has('data')) {
                 document.getElementById('link-message').classList.remove('hidden');
@@ -325,6 +332,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             if (error && !user) console.warn('Sesión no disponible:', error.message);
             await showAdminSession(user);
             supabaseClient.auth.onAuthStateChange((_event, session) => {
+                if (remoteContract || new URLSearchParams(location.search).has('token')) return;
                 if (session?.user?.id !== currentUser?.id) void showAdminSession(session?.user || null);
             });
         });
@@ -475,8 +483,8 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                             ${isSigned ? `
                                 <button onclick="downloadPDF('${c.id}')" class="px-3.5 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold shadow-sm">PDF</button>
                             ` : `
-                                <button onclick="showToast('Enlaces de firma pendientes de activar con Edge Function.', 'info')" class="px-3.5 py-2 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 rounded-xl text-xs font-medium transition">Copiar Link</button>
-                                <button onclick="openSigningView(contractsList.find(x => x.id === '${c.id}'))" class="px-3.5 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold">Firmar</button>
+                                <button onclick="copySmartLink('${c.id}')" class="px-3.5 py-2 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 rounded-xl text-xs font-medium transition">Copiar Link</button>
+                
                             `}
                             <button onclick="deleteContract('${c.id}')" class="p-2 text-zinc-400 hover:text-red-500 transition">🗑</button>
                         </div>
@@ -539,8 +547,55 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             updateStats(); renderContractsList(); showToast('Contrato eliminado.', 'info');
         }
 
-        // Enlace Inteligente Corto con Respaldo Comprimido
-        function copySmartLink() { showToast('Los enlaces seguros se habilitarán con la Edge Function.', 'info'); }
+        // Enlaces seguros: nunca se incorpora información personal en la URL.
+        async function signingRequest(payload, accessToken = null) {
+            const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_CONFIG.anonKey };
+            if (accessToken) headers.Authorization = 'Bearer ' + accessToken;
+            const response = await fetch(SIGNING_ENDPOINT, { method: 'POST', headers, body: JSON.stringify(payload), cache: 'no-store' });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'Error HTTP ' + response.status);
+            return data;
+        }
+
+        async function copySmartLink(id) {
+            if (!currentUser) return;
+            try {
+                const { data: sessionData, error } = await supabaseClient.auth.getSession();
+                if (error || !sessionData.session?.access_token) throw new Error('Vuelve a iniciar sesión');
+                const result = await signingRequest({ action: 'create-link', id }, sessionData.session.access_token);
+                const url = new URL(window.location.pathname, window.location.href);
+                url.searchParams.set('token', result.token);
+                try { await navigator.clipboard.writeText(url.href); }
+                catch (_) {
+                    const input = document.createElement('textarea'); input.value = url.href;
+                    document.body.appendChild(input); input.select(); document.execCommand('copy'); input.remove();
+                }
+                showToast('Enlace privado copiado. Generar otro revoca el anterior.', 'success');
+            } catch (error) { showToast('No se pudo generar el enlace: ' + error.message, 'error'); }
+        }
+
+        async function openRemoteSigning(token) {
+            document.getElementById('btn-cloud-status').classList.add('hidden');
+            document.getElementById('btn-logout').classList.add('hidden');
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-main').classList.remove('hidden');
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-signing').classList.remove('hidden');
+            document.getElementById('view-signing').classList.add('flex');
+            document.querySelector('#view-signing button[onclick="backToDashboard()"]')?.classList.add('hidden');
+            document.getElementById('signing-form-box').classList.add('hidden');
+            document.getElementById('signing-badge').textContent = 'Verificando enlace…';
+            try {
+                const result = await signingRequest({ action: 'get-contract', token });
+                remoteToken = token;
+                remoteContract = result.contract;
+                openSigningView(remoteContract, true);
+                document.getElementById('signing-form-box').classList.remove('hidden');
+            } catch (error) {
+                document.getElementById('signing-badge').textContent = 'Enlace no disponible';
+                document.getElementById('contract-document-preview').textContent = 'No se pudo abrir el contrato: ' + error.message;
+            }
+        }
 
         // Firma y Vista de Contrato
         function openSigningView(contract, isRemote = false) {
@@ -551,6 +606,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
             const badge = document.getElementById('signing-badge');
             const formBox = document.getElementById('signing-form-box');
+            if (isRemote) signatureTouched = false;
 
             renderContractText(contract);
 
@@ -577,6 +633,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         }
 
         function backToDashboard() {
+            if (remoteContract) return;
             document.getElementById('view-signing').classList.remove('flex');
             document.getElementById('view-signing').classList.add('hidden');
             document.getElementById('view-dashboard').classList.remove('hidden');
@@ -654,6 +711,9 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         function resizeSignatureCanvas() {
             if (!signatureCanvas) return;
             const rect = signatureCanvas.getBoundingClientRect();
+            const previous = document.createElement('canvas');
+            previous.width = signatureCanvas.width; previous.height = signatureCanvas.height;
+            if (previous.width && previous.height) previous.getContext('2d').drawImage(signatureCanvas, 0, 0);
             signatureCanvas.width = rect.width * window.devicePixelRatio;
             signatureCanvas.height = rect.height * window.devicePixelRatio;
             signatureCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
@@ -661,6 +721,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             signatureCtx.lineWidth = 2.5;
             signatureCtx.lineCap = 'round';
             signatureCtx.lineJoin = 'round';
+            if (previous.width && previous.height && signatureTouched) signatureCtx.drawImage(previous, 0, 0, rect.width, rect.height);
         }
 
         function getMousePos(e) {
@@ -670,6 +731,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
         function startDrawing(e) {
             isDrawing = true;
+            signatureTouched = true;
             const pos = getMousePos(e);
             signatureCtx.beginPath();
             signatureCtx.moveTo(pos.x, pos.y);
@@ -689,6 +751,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         function clearSignature() {
             if (!signatureCanvas) return;
             signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            signatureTouched = false;
         }
 
         function checkMinorAge() {
@@ -711,8 +774,6 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
         }
 
         async function submitModelSignature() {
-            showToast('La firma estará disponible cuando se active la Edge Function segura.', 'error');
-            return;
             const fullName = document.getElementById('model-full-name').value.trim();
             const dob = document.getElementById('model-dob').value;
             const gender = document.getElementById('model-gender').value;
@@ -747,22 +808,25 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             }
 
             const signatureDataUrl = signatureCanvas.toDataURL('image/png');
-            const contract = contractsList.find(c => c.id === activeContractId);
-            if (!contract) return;
-
-            contract.status = 'signed';
-            contract.signedAt = new Date().toISOString();
-            contract.modelData = {
-                fullName, dob, gender, curp, address, phone, email, ethnicity, guardianName, guardianCurp, signatureDataUrl
-            };
-
-            const saveResult = await saveContractToStorage(contract);
-            if (saveResult.synced) {
-                showToast('Firma guardada y sincronizada con Cloud.', 'success');
-            } else {
-                showToast('Firma guardada SOLO en este dispositivo. No llegó al panel: configura Supabase en este dispositivo y vuelve a sincronizar.', 'error');
+            if (!remoteToken || !remoteContract || activeContractId !== remoteContract.id) {
+                showToast('Abre el enlace privado del modelo para firmar.', 'error'); return;
             }
-            openSigningView(contract, true);
+            if (!signatureTouched) { showToast('Dibuja tu firma.', 'error'); return; }
+            const submitButton = document.querySelector('#signing-form-box button[onclick="submitModelSignature()"]');
+            if (submitButton) submitButton.disabled = true;
+            try {
+                await signingRequest({ action: 'sign', token: remoteToken, modelData: {
+                    fullName, dob, gender, curp, address, phone, email, ethnicity, guardianName, guardianCurp, signatureDataUrl
+                }});
+                remoteToken = null;
+                document.getElementById('signing-form-box').innerHTML = '<div class="text-center py-8"><h3 class="font-bold text-xl mb-3">Firma enviada correctamente</h3><p>Tu contrato quedó registrado. Puedes cerrar esta página.</p></div>';
+                document.getElementById('signing-badge').textContent = 'Firmado';
+                showToast('Firma guardada correctamente en Supabase.', 'success');
+            } catch (error) {
+                showToast('No se pudo guardar la firma: ' + error.message, 'error');
+                if (submitButton) submitButton.disabled = false;
+            }
+
         }
 
         // PDF Export
