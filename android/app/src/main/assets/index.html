@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="referrer" content="no-referrer">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Braiton Saldaña — Model Release Cloud</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        studio: {
+                            50: '#f4f4f5',
+                            100: '#e4e4e7',
+                            800: '#27272a',
+                            900: '#18181b',
+                            950: '#09090b',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace']
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <!-- Supabase JS Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- jsPDF & html2canvas for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .signature-canvas { touch-action: none; }
+        @media print {
+            body { background: white !important; color: black !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body class="h-full bg-studio-50 text-studio-950 dark:bg-studio-950 dark:text-studio-50 flex flex-col transition-colors duration-200">
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="fixed top-5 right-5 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+    <!-- Main Header -->
+    <header class="border-b border-zinc-200 dark:border-studio-800 bg-white/80 dark:bg-studio-900/80 backdrop-blur sticky top-0 z-40 px-4 sm:px-8 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 flex items-center font-bold text-lg tracking-wider shadow-sm">BS</div>
+            <div>
+                <h1 class="font-bold text-base sm:text-lg tracking-tight">BRAITON SALDAÑA</h1>
+                <p class="text-xs text-zinc-500 dark:text-zinc-400 font-mono">MODEL RELEASE CLOUD</p>
+            </div>
+        </div>
+        <div class="flex items-center gap-2">
+            <button id="btn-cloud-status" disabled class="text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5">
+                <span id="cloud-status-dot" class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                <span id="cloud-status-text">Configurar Cloud</span>
+            </button>
+            <button id="btn-logout" onclick="logoutAdmin()" class="hidden text-xs px-3 py-2 rounded-xl border border-zinc-300 dark:border-zinc-700">Cerrar sesión</button>
+            <button onclick="toggleDarkMode()" class="p-2 rounded-xl border border-zinc-200 dark:border-studio-800 hover:bg-zinc-100 dark:hover:bg-studio-800 transition">
+                <svg id="theme-icon" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+            </button>
+        </div>
+    </header>
+
+
+    <section id="auth-screen" class="hidden flex-1 items-center justify-center p-5">
+      <form id="auth-form" class="w-full max-w-sm bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-7 shadow-sm flex flex-col gap-4">
+        <h2 class="text-xl font-bold">Acceso de administrador</h2>
+        <p class="text-sm text-zinc-500">Inicia sesión con tu cuenta de Supabase.</p>
+        <label class="text-sm">Correo electrónico<input id="auth-email" type="email" required autocomplete="username" class="mt-1 w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent"></label>
+        <label class="text-sm">Contraseña<input id="auth-password" type="password" required autocomplete="current-password" class="mt-1 w-full p-3 rounded-xl border border-zinc-300 dark:border-zinc-700 bg-transparent"></label>
+        <button id="auth-submit" type="submit" class="bg-zinc-900 text-white dark:bg-white dark:text-zinc-900 rounded-xl p-3 font-semibold">Iniciar sesión</button>
+        <p id="auth-error" role="alert" class="text-sm text-red-600"></p>
+      </form>
+    </section>
+    <section id="link-message" class="hidden flex-1 items-center justify-center p-6"><div class="max-w-lg rounded-2xl border p-6 bg-white dark:bg-studio-900"><h2 class="font-bold text-lg mb-3">Enlace de firma anterior</h2><p class="text-sm">Este enlace no está habilitado en la nueva versión segura. Solicita un enlace nuevo cuando el administrador active el sistema de firma.</p></div></section>
+
+    <!-- App Body / Container -->
+    <main id="app-main" class="hidden flex-1 max-w-7xl w-full mx-auto p-4 sm:p-8 flex flex-col gap-6">
+
+        <!-- Photographer Dashboard View -->
+        <div id="view-dashboard" class="flex flex-col gap-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                    <h2 class="text-2xl font-bold tracking-tight">Gestión Cloud en Tiempo Real</h2>
+                    <p class="text-sm text-zinc-500 dark:text-zinc-400">Administra contratos, comparte enlaces cortos y recibe firmas sincronizadas.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button onclick="openNewContractModal()" class="px-4 py-2.5 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-semibold text-sm hover:opacity-90 transition flex items-center gap-2 shadow-sm">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Nuevo Contrato
+                    </button>
+                    <button onclick="openPhotographerSignature()" class="px-3.5 py-2.5 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 dark:hover:bg-studio-700 rounded-xl text-sm font-medium transition">Mi firma</button>
+                    <button onclick="exportJSONBackup()" class="px-3.5 py-2.5 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 dark:hover:bg-studio-700 rounded-xl text-sm font-medium transition">Respaldo JSON</button>
+                </div>
+            </div>
+
+            <!-- Stats Grid -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-medium text-zinc-400 uppercase tracking-wider">Total Contratos</p>
+                    <p id="stat-total" class="text-3xl font-bold font-mono mt-1">0</p>
+                </div>
+                <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-medium text-amber-500 uppercase tracking-wider">Pendientes de Firma</p>
+                    <p id="stat-pending" class="text-3xl font-bold font-mono mt-1 text-amber-500">0</p>
+                </div>
+                <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 shadow-sm">
+                    <p class="text-xs font-medium text-emerald-500 uppercase tracking-wider">Firmados</p>
+                    <p id="stat-signed" class="text-3xl font-bold font-mono mt-1 text-emerald-500">0</p>
+                </div>
+            </div>
+
+            <!-- Contracts Search & Filter -->
+            <div class="flex flex-col sm:flex-row gap-3">
+                <input type="text" id="search-input" oninput="renderContractsList()" placeholder="Buscar proyecto o modelo..." class="flex-1 bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500 transition">
+                <div class="flex items-center gap-1 bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 p-1 rounded-xl">
+                    <button onclick="setFilter('all')" id="filter-all" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 transition">Todos</button>
+                    <button onclick="setFilter('pending')" id="filter-pending" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">Pendientes</button>
+                    <button onclick="setFilter('signed')" id="filter-signed" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">Firmados</button>
+                </div>
+            </div>
+
+            <!-- Contracts List -->
+            <div id="contracts-container" class="flex flex-col gap-3">
+                <!-- Dinámico -->
+            </div>
+        </div>
+
+        <!-- Model Signing / Preview View -->
+        <div id="view-signing" class="hidden flex-col gap-6 max-w-4xl mx-auto w-full">
+            <div class="flex items-center justify-between border-b border-zinc-200 dark:border-studio-800 pb-4">
+                <button onclick="backToDashboard()" class="text-sm font-semibold flex items-center gap-1.5 text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    Volver al Panel
+                </button>
+                <div id="signing-badge" class="px-3 py-1 rounded-full text-xs font-mono font-medium">Estado</div>
+            </div>
+
+            <div id="contract-document-preview" class="bg-white text-zinc-900 p-8 sm:p-12 rounded-2xl shadow-xl border border-zinc-200 flex flex-col gap-6 font-sans">
+                <!-- Se inyecta la plantilla del contrato oficial -->
+            </div>
+
+            <!-- Formulario de firma si está pendiente -->
+            <div id="signing-form-box" class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-6 sm:p-8 flex flex-col gap-6 shadow-sm">
+                <h3 class="font-bold text-lg">Datos y Firma del Modelo</h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre Completo del Modelo</label>
+                        <input type="text" id="model-full-name" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Fecha de Nacimiento</label>
+                        <input type="date" id="model-dob" onchange="checkMinorAge()" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Género</label>
+                        <select id="model-gender" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                            <option value="M">Masculino (M)</option>
+                            <option value="F">Femenino (F)</option>
+                            <option value="Otro">Otro</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">CURP / INE No.</label>
+                        <input type="text" id="model-curp" placeholder="Ej. ABCD123456HDF..." required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500 font-mono uppercase">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Dirección Completa (Calle, Ciudad, Estado, País, C.P.)</label>
+                        <input type="text" id="model-address" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Teléfono</label>
+                        <input type="tel" id="model-phone" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Correo Electrónico</label>
+                        <input type="email" id="model-email" required class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                    </div>
+                    <div class="sm:col-span-2">
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Etnia (Opcional - Fines descriptivos de stock)</label>
+                        <select id="model-ethnicity" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                            <option value="">Ninguna / Prefiero no especificar</option>
+                            <option value="Caucasian, White">Caucasian, White</option>
+                            <option value="Hispanic, Latin">Hispanic, Latin</option>
+                            <option value="Black, African">Black, African</option>
+                            <option value="Asian (Chinese, Indian, Japanese, Korean)">Asian (Chinese, Indian, Japanese, Korean)</option>
+                            <option value="Native American">Native American</option>
+                            <option value="Pacific Islander">Pacific Islander</option>
+                            <option value="Middle Eastern">Middle Eastern</option>
+                            <option value="Mixed Race">Mixed Race</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Sección para menores de edad (condicional) -->
+                <div id="guardian-section" class="hidden flex-col gap-4 border-t border-zinc-200 dark:border-studio-800 pt-4 mt-2">
+                    <p class="text-xs font-semibold text-amber-500">⚠️ El modelo es menor de 18 años. Se requiere autorización del padre o tutor legal:</p>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre del Padre o Tutor Legal</label>
+                            <input type="text" id="guardian-name" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-zinc-400 mb-1">CURP / INE del Tutor</label>
+                            <input type="text" id="guardian-curp" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-zinc-500 font-mono uppercase">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Fotografía opcional del modelo -->
+                <div class="flex flex-col gap-2">
+                    <label for="model-photo" class="text-xs font-medium text-zinc-400">Fotografía del modelo (opcional)</label>
+                    <input type="file" id="model-photo" accept="image/jpeg,image/png,image/webp" onchange="previewModelPhoto()" class="w-full text-sm rounded-xl border border-zinc-200 dark:border-studio-700 p-3">
+                    <p class="text-xs text-zinc-500">JPG, PNG o WebP. Se reduce automáticamente para incluirla en el contrato y en el PDF.</p>
+                    <img id="model-photo-preview" alt="Vista previa de la fotografía" class="hidden w-32 h-40 object-cover rounded-xl border border-zinc-200">
+                </div>
+
+                <!-- Canvas de Firma Digital -->
+                <div class="flex flex-col gap-2">
+                    <div class="flex items-center justify-between">
+                        <label class="text-xs font-medium text-zinc-400">Firma Digital del Modelo (Dibuja dentro del recuadro)</label>
+                        <button type="button" onclick="clearSignature()" class="text-xs text-red-500 hover:underline">Limpiar firma</button>
+                    </div>
+                    <div class="border-2 border-dashed border-zinc-300 dark:border-studio-700 rounded-2xl bg-white overflow-hidden relative touch-none">
+                        <canvas id="sig-canvas" class="signature-canvas w-full h-48 cursor-crosshair"></canvas>
+                    </div>
+                </div>
+
+                <button onclick="submitModelSignature()" class="w-full py-3.5 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm hover:opacity-90 transition shadow-md">
+                    Aceptar, Firmar y Enviar Contrato
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Modal Nuevo Contrato -->
+    <div id="modal-new" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden items-center justify-center p-4">
+        <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 sm:p-8 flex flex-col gap-6 shadow-2xl">
+            <div class="flex items-center justify-between">
+                <h3 class="text-lg font-bold">Crear Model Release — formato Arcangel</h3>
+                <button onclick="closeNewContractModal()" class="text-zinc-400 hover:text-zinc-900 dark:hover:text-white">✕</button>
+            </div>
+            <div class="flex flex-col gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre del Proyecto / Shoot</label>
+                    <input type="text" id="inp-project" placeholder="Ej. Urban Night Session" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Release No.</label>
+                        <input type="number" id="inp-no" value="1" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-zinc-400 mb-1">Fecha del Shoot</label>
+                        <input type="date" id="inp-date" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Locación (Ciudad / Estado)</label>
+                    <input type="text" id="inp-location" value="Guanajuato, México" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+                <div>
+                    <label for="inp-payment-mode" class="block text-xs font-medium text-zinc-400 mb-1">Modalidad de compensación</label>
+                    <select id="inp-payment-mode" onchange="updateCompensationFields()" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm">
+                        <option value="tfp">TFP — Intercambio de fotografías</option>
+                        <option value="paid">Pago económico al modelo</option>
+                    </select>
+                </div>
+                <div id="tfp-fields">
+                    <label for="inp-tfp-deliverables" class="block text-xs font-medium text-zinc-400 mb-1">Fotografías que recibirá el modelo</label>
+                    <input type="text" id="inp-tfp-deliverables" placeholder="Ej. 10 fotografías editadas en formato digital" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm">
+                    <label for="inp-tfp-deadline" class="block text-xs font-medium text-zinc-400 mb-1 mt-2">Plazo de entrega</label>
+                    <input type="text" id="inp-tfp-deadline" placeholder="Ej. 15 días naturales después de la sesión" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm">
+                </div>
+                <div id="paid-fields" class="hidden">
+                    <label for="inp-payment-amount" class="block text-xs font-medium text-zinc-400 mb-1">Importe en pesos mexicanos (MXN)</label>
+                    <input type="number" id="inp-payment-amount" min="0.01" step="0.01" placeholder="Ej. 1500.00" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm">
+                    <label for="inp-payment-method" class="block text-xs font-medium text-zinc-400 mb-1 mt-2">Forma de pago</label>
+                    <select id="inp-payment-method" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm"><option value="transferencia bancaria">Transferencia bancaria</option><option value="efectivo">Efectivo</option><option value="otro medio acordado">Otro medio acordado</option></select>
+                    <label for="inp-payment-deadline" class="block text-xs font-medium text-zinc-400 mb-1 mt-2">Momento de pago</label>
+                    <input type="text" id="inp-payment-deadline" placeholder="Ej. Al finalizar la sesión" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Descripción de licencia / usos (información adicional)</label>
+                    <input type="text" id="inp-license" value="Commercial, Editorial and Worldwide Licensing" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+                <p class="text-xs text-amber-700 dark:text-amber-300">Basado en el formulario Model Release aportado de Arcangel Images. Conserva sus seis cláusulas; la compensación TFP/pago es una adición. La autorización incluye usos sensibles amplios y debe revisarse antes de su uso legal.</p>
+                <div>
+                    <label class="block text-xs font-medium text-zinc-400 mb-1">Nombre Precargado del Modelo (Opcional)</label>
+                    <input type="text" id="inp-prefill" placeholder="Ej. Gael Saldaña" class="w-full bg-zinc-50 dark:bg-studio-800 border border-zinc-200 dark:border-studio-700 rounded-xl px-4 py-2.5 text-sm outline-none">
+                </div>
+            </div>
+            <button onclick="createNewContract()" class="py-3 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm hover:opacity-95 transition">Generar y Obtener Enlace Corto</button>
+        </div>
+    </div>
+
+    <!-- Application Script Logic -->
+    <div id="photographer-signature-modal" class="hidden fixed inset-0 z-[100] bg-black/60 p-4 items-center justify-center">
+      <div class="bg-white dark:bg-studio-900 rounded-2xl p-6 w-full max-w-xl shadow-2xl">
+        <h3 class="font-bold text-xl mb-2">Firma del fotógrafo</h3>
+        <p class="text-sm text-zinc-500 mb-4">Dibuja tu firma. Se guardará en tu perfil de Supabase para usarla en los PDF que descargues.</p>
+        <canvas id="photographer-signature-canvas" width="800" height="260" style="width:100%;height:180px;touch-action:none;background:white;border:1px solid #d4d4d8;border-radius:10px;display:block"></canvas>
+        <p id="photographer-signature-status" class="text-sm text-zinc-500 mt-3" role="status"></p>
+        <div class="flex flex-wrap gap-2 justify-end mt-4">
+          <button type="button" onclick="clearPhotographerSignatureCanvas()" class="px-3 py-2 rounded-lg border">Limpiar</button>
+          <button type="button" onclick="closePhotographerSignature()" class="px-3 py-2 rounded-lg border">Cancelar</button>
+          <button type="button" onclick="savePhotographerSignature()" id="photographer-signature-save" class="px-4 py-2 rounded-lg bg-zinc-900 text-white">Guardar firma</button>
+        </div>
+        <button type="button" onclick="removePhotographerSignature()" class="text-xs text-red-600 mt-4 underline">Eliminar firma guardada</button>
+      </div>
+    </div>
+    <script>
+        let contractsList = [];
+        let currentFilter = 'all';
+        let activeContractId = null;
+        let supabaseClient = null;
+        const SUPABASE_TABLE = 'contratos';
+        let remoteToken = null;
+        let remoteContract = null;
+        let signatureTouched = false;
+        // Para que TODOS los dispositivos usen el mismo proyecto, pega aquí la URL y la anon/publishable key
+        // de tu proyecto Supabase antes de publicar. Nunca coloques aquí service_role/secret keys.
+        const SUPABASE_CONFIG = { url: 'https://oqvkpqeoemcwegstwjuv.supabase.co', anonKey: 'sb_publishable_ubd5WFl_IOKFtaa3T-gCRQ_xZrEvZMd' };
+        const SIGNING_ENDPOINT = SUPABASE_CONFIG.url + '/functions/v1/model-release-signing';
+        let currentUser = null;
+        let photographerSignatureDataUrl = '';
+        let photographerSignatureDrawn = false;
+        let photographerCanvasReady = false;
+        let signatureCanvas, signatureCtx, isDrawing = false;
+
+        // Adaptación del Model Release proporcionado por el usuario (Arcangel),
+        // conservando las seis cláusulas y agregando la modalidad TFP/pago.
+        const DEFAULT_TERMS = `MODEL RELEASE — BRAITON SALDAÑA
+Shoot Date: {{FECHA}} | Photographer/Filmmaker: Braiton Saldaña Valdez
+Description of Shoot: {{PROYECTO}} | Location of Shoot: {{LUGAR}}
+
+For good and valuable consideration, which I acknowledge as received or agreed as specified below, and by signing this release I grant as follows:
+
+1. I irrevocably grant to Photographer/Filmmaker and its licensees, successors, and assigns ("Photographer/Filmmaker") the right to license and use the still or motion photographs or film taken of me including my voice, picture, portrait and likeness (the "Images") in any and all media and for any use whatsoever (except illegal or pornographic), including without limitation, art, stock, advertising, trade and promotion, in perpetuity. Uses may include subject matter that may be controversial or sensitive including but not limited to the use of an Image that involves or implies illegal activities, adverse medical conditions or procedures, other adverse health or mental health issues, substance abuse, drug use, welfare or economic aid, dating agencies, sexual preference, teen pregnancy, abortion and adoption, political or religious affiliation, smoking or alcohol usage, feminine hygiene, incontinence or impotence. If I should receive any print, negative, digital file, film or other copy, I shall only use it for my own personal use and shall not authorize anyone else to use it. I agree and acknowledge that all rights to the Images are owned by "Photographer/Filmmaker" including the right to copyright the Images.
+
+2. I agree that no advertisement, product or other material need be submitted to me for any further approval and the Photographer/Filmmaker shall be without liability to me for any distortion or illusionary effect or adverse result to me on account of the publication, distribution or broadcast of the Images. I agree that the Images may be combined with other material and may be cropped, altered or modified. I consent to the use of my name or a fictitious name, and consent to the publication of any of the ethnicities indicated below, but understand that other ethnicities may be associated with the Images by the Photographer/Filmmaker for descriptive purposes.
+
+3. I understand that my personal information will not be made publicly available but may be used as required or necessary directly in relation to the licensing of the Images and may be retained as long as necessary to fulfill this purpose, including by being shared with the licensees / assignees of the Photographer/Filmmaker and transferred to countries with differing data protection and privacy laws where it may be stored, accessed and used.
+
+4. I release, discharge and agree to hold harmless the Photographer/Filmmaker and his/her licensees, sub-licensees, successors, and assigns ("Released Parties") from any liability arising out of or in connection with the use of the Images, including any and all claims for defamation and/or invasion of privacy or publicity. I acknowledge that the Released Parties are not responsible or liable for any unauthorized use, or piracy of the Images.
+
+5. I warrant that I am of full age and have every right to contract in my own name in the above regard; that I have read the above authorization, release and agreement, prior to its execution; and that I am fully familiar with the contents. This agreement shall be binding upon me, my heirs, successors, and assigns.
+
+6. I am an independent contractor and am not eligible for insurance or other benefits. I am solely responsible for my own taxes, insurance, benefits and costs and release Photographer/Filmmaker from any, and all, liability for any physical injury arising from the Shoot.
+
+COMPENSATION AGREED FOR THIS SHOOT: {{COMPENSACION}}
+LICENSE DESCRIPTION (additional project information): {{USOS}}`;
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            initTheme();
+            setupCanvas();
+            document.getElementById('inp-date').value = new Date().toISOString().split('T')[0];
+            document.getElementById('auth-form').addEventListener('submit', loginAdmin);
+            initSupabaseFromStorage();
+            if (!supabaseClient) { document.getElementById('auth-screen').classList.remove('hidden'); document.getElementById('auth-screen').classList.add('flex'); return; }
+            const signToken = new URLSearchParams(location.search).get('token');
+            if (signToken) { await openRemoteSigning(signToken); return; }
+            // Old ID/base64 links must never bypass authenticated access.
+            if (new URLSearchParams(location.search).has('id') || new URLSearchParams(location.search).has('data')) {
+                document.getElementById('link-message').classList.remove('hidden');
+                document.getElementById('link-message').classList.add('flex');
+                return;
+            }
+            const { data: { user }, error } = await supabaseClient.auth.getUser();
+            if (error && !user) console.warn('Sesión no disponible:', error.message);
+            await showAdminSession(user);
+            supabaseClient.auth.onAuthStateChange((_event, session) => {
+                if (remoteContract || new URLSearchParams(location.search).has('token')) return;
+                if (session?.user?.id !== currentUser?.id) void showAdminSession(session?.user || null);
+            });
+        });
+
+        async function loginAdmin(event) {
+            event.preventDefault();
+            const btn = document.getElementById('auth-submit');
+            const errorBox = document.getElementById('auth-error');
+            errorBox.textContent = '';
+            btn.disabled = true;
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email: document.getElementById('auth-email').value.trim(),
+                    password: document.getElementById('auth-password').value
+                });
+                if (error) throw error;
+                document.getElementById('auth-password').value = '';
+                await showAdminSession(data.user);
+            } catch (error) { errorBox.textContent = 'No se pudo iniciar sesión: ' + error.message; }
+            finally { btn.disabled = false; }
+        }
+
+        async function logoutAdmin() {
+            if (supabaseClient) await supabaseClient.auth.signOut();
+            await showAdminSession(null);
+        }
+
+        async function showAdminSession(user) {
+            currentUser = user || null;
+            photographerSignatureDataUrl = typeof user?.user_metadata?.photographer_signature_png === 'string' ? user.user_metadata.photographer_signature_png : '';
+            contractsList = [];
+            const loggedIn = !!currentUser;
+            document.getElementById('auth-screen').classList.toggle('hidden', loggedIn);
+            document.getElementById('auth-screen').classList.toggle('flex', !loggedIn);
+            document.getElementById('app-main').classList.toggle('hidden', !loggedIn);
+            document.getElementById('btn-logout').classList.toggle('hidden', !loggedIn);
+            if (loggedIn) await loadContracts();
+            else { updateStats(); renderContractsList(); setCloudStatus('offline', 'Inicia sesión'); }
+        }
+
+        // Configuración Supabase
+        function setCloudStatus(state, message) {
+            const dot = document.getElementById('cloud-status-dot');
+            const label = document.getElementById('cloud-status-text');
+            const button = document.getElementById('btn-cloud-status');
+            if (!dot || !label || !button) return;
+            if (state === 'connected') {
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-500';
+                label.textContent = 'Cloud conectado';
+                button.className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-600 border border-emerald-500/25 transition flex items-center gap-1.5';
+            } else if (state === 'error') {
+                dot.className = 'w-2 h-2 rounded-full bg-red-500';
+                label.textContent = 'Error Cloud';
+                button.className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-red-500/10 text-red-600 border border-red-500/25 transition flex items-center gap-1.5';
+            } else {
+                dot.className = 'w-2 h-2 rounded-full bg-amber-500';
+                label.textContent = message || 'Cloud sin configurar';
+                button.className = 'text-xs font-medium px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-600 border border-amber-500/25 transition flex items-center gap-1.5';
+            }
+        }
+
+        function initSupabaseFromStorage() {
+            if (!window.supabase?.createClient) { setCloudStatus('error'); return; }
+            supabaseClient = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+            setCloudStatus('offline', 'Inicia sesión');
+        }
+        function openCloudConfigModal() { showToast('La conexión está configurada para este proyecto.', 'info'); }
+        function closeCloudConfigModal() {}
+        function saveSupabaseConfig() { showToast('La conexión ya está configurada.', 'info'); }
+        function disconnectSupabase() { showToast('Usa Cerrar sesión para salir.', 'info'); }
+
+        async function loadContracts() {
+            if (!supabaseClient || !currentUser) return;
+            const { data, error } = await supabaseClient.from(SUPABASE_TABLE)
+                .select('id,data').eq('owner_id', currentUser.id).order('created_at', { ascending: false });
+            if (error) { setCloudStatus('error'); showToast('Error al cargar contratos: ' + error.message, 'error'); return; }
+            contractsList = (data || []).filter(row => row.data && row.data.id).map(row => row.data);
+            setCloudStatus('connected');
+            updateStats(); renderContractsList();
+        }
+
+        async function saveContractToStorage(cObj) {
+            if (!currentUser || !supabaseClient) return { synced: false, error: new Error('Inicia sesión primero.') };
+            const { error } = await supabaseClient.from(SUPABASE_TABLE)
+                .upsert({ id: cObj.id, data: cObj, owner_id: currentUser.id }, { onConflict: 'id' });
+            if (error) { setCloudStatus('error'); return { synced: false, error }; }
+            const idx = contractsList.findIndex(c => c.id === cObj.id);
+            if (idx < 0) contractsList.push(cObj); else contractsList[idx] = cObj;
+            setCloudStatus('connected');
+            updateStats(); renderContractsList();
+            return { synced: true, error: null };
+        }
+        function saveLocalAndCloud() { /* Cloud es la fuente de verdad. */ }
+
+        // Dashboard & UI
+        function updateStats() {
+            const total = contractsList.length;
+            const pending = contractsList.filter(c => c.status !== 'signed').length;
+            const signed = contractsList.filter(c => c.status === 'signed').length;
+            document.getElementById('stat-total').textContent = total;
+            document.getElementById('stat-pending').textContent = pending;
+            document.getElementById('stat-signed').textContent = signed;
+        }
+
+        function setFilter(f) {
+            currentFilter = f;
+            ['all', 'pending', 'signed'].forEach(type => {
+                const btn = document.getElementById(`filter-${type}`);
+                if (type === f) {
+                    btn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 transition';
+                } else {
+                    btn.className = 'px-3 py-1.5 text-xs font-semibold rounded-lg text-zinc-500 hover:text-zinc-900 dark:hover:text-white transition';
+                }
+            });
+            renderContractsList();
+        }
+
+        function renderContractsList() {
+            const query = (document.getElementById('search-input').value || '').toLowerCase();
+            const container = document.getElementById('contracts-container');
+
+            let filtered = contractsList.filter(c => {
+                const matchStatus = currentFilter === 'all' || (currentFilter === 'signed' ? c.status === 'signed' : c.status !== 'signed');
+                const matchQuery = c.projectName.toLowerCase().includes(query) || (c.modelPrefill || '').toLowerCase().includes(query) || (c.modelData?.fullName || '').toLowerCase().includes(query);
+                return matchStatus && matchQuery;
+            });
+
+            if (filtered.length === 0) {
+                container.innerHTML = `<div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-8 text-center text-zinc-400 text-sm">No se encontraron contratos.</div>`;
+                return;
+            }
+
+            container.innerHTML = filtered.map(c => {
+                const isSigned = c.status === 'signed';
+                const modelName = isSigned ? c.modelData.fullName : (c.modelPrefill || 'Pendiente de asignar');
+                const shortLink = ''; // Los enlaces de firma requieren Edge Function.
+
+                return `
+                    <div class="bg-white dark:bg-studio-900 border border-zinc-200 dark:border-studio-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <span class="text-xs font-mono px-2 py-0.5 rounded ${isSigned ? 'bg-emerald-500/10 text-emerald-600' : 'bg-amber-500/10 text-amber-600'}">${isSigned ? 'Firmado' : 'Pendiente'}</span>
+                                <span class="text-xs text-zinc-400 font-mono">Release No. ${c.releaseNo}</span>
+                            </div>
+                            <h3 class="font-semibold text-base">${escapeHTML(c.projectName)}</h3>
+                            <p class="text-xs text-zinc-500">Modelo: <strong>${escapeHTML(modelName)}</strong> | Fecha: ${c.shootDate}</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            ${isSigned ? `
+                                <button onclick="downloadPDF('${c.id}')" class="px-3.5 py-2 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl text-xs font-semibold shadow-sm">PDF</button>
+                            ` : `
+                                <button onclick="copySmartLink('${c.id}')" class="px-3.5 py-2 bg-zinc-100 dark:bg-studio-800 hover:bg-zinc-200 rounded-xl text-xs font-medium transition">Copiar Link</button>
+                
+                            `}
+                            <button onclick="deleteContract('${c.id}')" class="p-2 text-zinc-400 hover:text-red-500 transition">🗑</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Crear Nuevo Contrato Modal
+        function openNewContractModal() {
+            document.getElementById('modal-new').classList.remove('hidden');
+            document.getElementById('modal-new').classList.add('flex');
+        }
+
+        function closeNewContractModal() {
+            document.getElementById('modal-new').classList.remove('flex');
+            document.getElementById('modal-new').classList.add('hidden');
+        }
+
+        function updateCompensationFields() {
+            const paid = document.getElementById('inp-payment-mode').value === 'paid';
+            document.getElementById('paid-fields').classList.toggle('hidden', !paid);
+            document.getElementById('tfp-fields').classList.toggle('hidden', paid);
+        }
+
+        async function createNewContract() {
+            const project = document.getElementById('inp-project').value.trim();
+            const releaseNo = document.getElementById('inp-no').value.trim();
+            const date = document.getElementById('inp-date').value;
+            const location = document.getElementById('inp-location').value.trim();
+            const compensationMode = document.getElementById('inp-payment-mode').value;
+            let compensationDetails;
+            let compensation;
+            if (compensationMode === 'tfp') {
+                const deliverables = document.getElementById('inp-tfp-deliverables').value.trim();
+                const deadline = document.getElementById('inp-tfp-deadline').value.trim();
+                if (!deliverables || !deadline) return showToast('Especifica fotografías y plazo de entrega para TFP.', 'error');
+                compensationDetails = { mode: 'tfp', deliverables, deadline };
+                compensation = `TFP — Intercambio de fotografías: ${deliverables}. Entrega: ${deadline}. Sin pago económico al modelo.`;
+            } else {
+                const amount = Number(document.getElementById('inp-payment-amount').value);
+                const method = document.getElementById('inp-payment-method').value;
+                const deadline = document.getElementById('inp-payment-deadline').value.trim();
+                if (!Number.isFinite(amount) || amount <= 0 || !deadline) return showToast('Indica un importe mayor que cero y el momento de pago.', 'error');
+                compensationDetails = { mode: 'paid', amount, currency: 'MXN', method, deadline };
+                compensation = `Pago económico al modelo: $${amount.toLocaleString('es-MX', {minimumFractionDigits:2, maximumFractionDigits:2})} MXN, mediante ${method}. Momento de pago: ${deadline}.`;
+            }
+            const license = document.getElementById('inp-license').value.trim();
+            const prefill = document.getElementById('inp-prefill').value.trim();
+
+            if (!project) {
+                showToast('Introduce el nombre del proyecto.', 'error');
+                return;
+            }
+
+            const newC = {
+                id: 'bs_' + crypto.randomUUID(),
+                releaseNo: releaseNo || '1',
+                shootDate: date,
+                projectName: project,
+                location: location,
+                compensation: compensation,
+                compensationDetails,
+                license: license,
+                modelPrefill: prefill,
+                status: 'pending',
+                createdAt: new Date().toISOString()
+            };
+
+            const saveResult = await saveContractToStorage(newC);
+            if (!saveResult.synced) { showToast('No se guardó el contrato: ' + saveResult.error.message, 'error'); return; }
+            closeNewContractModal();
+            showToast('Contrato creado y guardado en Cloud.', 'success');
+
+            // No generar enlaces por ID: falta la Edge Function con token seguro.
+        }
+
+        async function deleteContract(id) {
+            if (!currentUser || !confirm('¿Eliminar este contrato?')) return;
+            const { error } = await supabaseClient.from(SUPABASE_TABLE).delete().eq('id', id).eq('owner_id', currentUser.id);
+            if (error) { showToast('No se pudo eliminar: ' + error.message, 'error'); return; }
+            contractsList = contractsList.filter(c => c.id !== id);
+            updateStats(); renderContractsList(); showToast('Contrato eliminado.', 'info');
+        }
+
+        // Enlaces seguros: nunca se incorpora información personal en la URL.
+        async function signingRequest(payload, accessToken = null) {
+            const headers = { 'Content-Type': 'application/json', 'apikey': SUPABASE_CONFIG.anonKey };
+            if (accessToken) headers.Authorization = 'Bearer ' + accessToken;
+            const response = await fetch(SIGNING_ENDPOINT, { method: 'POST', headers, body: JSON.stringify(payload), cache: 'no-store' });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) throw new Error(data.error || 'Error HTTP ' + response.status);
+            return data;
+        }
+
+        async function copySmartLink(id) {
+            if (!currentUser) return;
+            try {
+                const { data: sessionData, error } = await supabaseClient.auth.getSession();
+                if (error || !sessionData.session?.access_token) throw new Error('Vuelve a iniciar sesión');
+                const result = await signingRequest({ action: 'create-link', id }, sessionData.session.access_token);
+                const url = new URL(window.location.pathname, window.location.href);
+                url.searchParams.set('token', result.token);
+                let copied = false;
+                try {
+                    if (navigator.clipboard?.writeText) {
+                        await navigator.clipboard.writeText(url.href);
+                        copied = true;
+                    }
+                } catch (_) {}
+                if (!copied) {
+                    const input = document.createElement('textarea');
+                    input.value = url.href;
+                    input.style.position = 'fixed'; input.style.opacity = '0';
+                    document.body.appendChild(input);
+                    input.focus(); input.select();
+                    try { copied = document.execCommand('copy'); } catch (_) {}
+                    input.remove();
+                }
+                if (copied) showToast('Enlace privado copiado. Generar otro revoca el anterior.', 'success');
+                else window.prompt('Copia este enlace privado (Ctrl+C):', url.href);
+            } catch (error) { showToast('No se pudo generar el enlace: ' + error.message, 'error'); }
+        }
+
+        async function openRemoteSigning(token) {
+            document.getElementById('btn-cloud-status').classList.add('hidden');
+            document.getElementById('btn-logout').classList.add('hidden');
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-main').classList.remove('hidden');
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-signing').classList.remove('hidden');
+            document.getElementById('view-signing').classList.add('flex');
+            document.querySelector('#view-signing button[onclick="backToDashboard()"]')?.classList.add('hidden');
+            document.getElementById('signing-form-box').classList.add('hidden');
+            document.getElementById('signing-badge').textContent = 'Verificando enlace…';
+            try {
+                const result = await signingRequest({ action: 'get-contract', token });
+                remoteToken = token;
+                remoteContract = result.contract;
+                openSigningView(remoteContract, true);
+                document.getElementById('signing-form-box').classList.remove('hidden');
+            } catch (error) {
+                document.getElementById('signing-badge').textContent = 'Enlace no disponible';
+                document.getElementById('contract-document-preview').textContent = 'No se pudo abrir el contrato: ' + error.message;
+            }
+        }
+
+        // Firma y Vista de Contrato
+        function openSigningView(contract, isRemote = false) {
+            activeContractId = contract.id;
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-signing').classList.remove('hidden');
+            document.getElementById('view-signing').classList.add('flex');
+
+            const badge = document.getElementById('signing-badge');
+            const formBox = document.getElementById('signing-form-box');
+            if (isRemote) signatureTouched = false;
+
+            renderContractText(contract);
+
+            if (contract.status === 'signed') {
+                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-medium bg-emerald-500/10 text-emerald-600';
+                badge.textContent = 'Contrato Firmado';
+                formBox.innerHTML = `
+                    <div class="flex flex-col items-center gap-4 py-6">
+                        <div class="w-12 h-12 rounded-full bg-emerald-500/10 text-emerald-600 flex items-center justify-center font-bold text-xl">✓</div>
+                        <h4 class="font-bold text-base">Este contrato ya ha sido firmado digitalmente</h4>
+                        <p class="text-xs text-zinc-500 text-center">Firmado por: <strong>${escapeHTML(contract.modelData.fullName)}</strong> el ${new Date(contract.signedAt).toLocaleDateString()}</p>
+                        <button onclick="downloadPDF('${contract.id}')" class="px-6 py-3 bg-zinc-900 text-white dark:bg-white dark:text-zinc-950 rounded-xl font-bold text-sm shadow-md">Descargar PDF Certificado</button>
+                    </div>
+                `;
+            } else {
+                badge.className = 'px-3 py-1 rounded-full text-xs font-mono font-medium bg-amber-500/10 text-amber-600';
+                badge.textContent = 'Pendiente de Firma';
+                if (contract.modelPrefill) {
+                    document.getElementById('model-full-name').value = contract.modelPrefill;
+                }
+                setTimeout(() => resizeSignatureCanvas(), 200);
+            }
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function backToDashboard() {
+            if (remoteContract) return;
+            document.getElementById('view-signing').classList.remove('flex');
+            document.getElementById('view-signing').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.remove('hidden');
+            window.history.replaceState({}, document.title, window.location.pathname);
+            loadContracts();
+        }
+
+        function renderContractText(c) {
+            let terms = DEFAULT_TERMS
+                .replace('{{FECHA}}', c.shootDate)
+                .replace('{{PROYECTO}}', c.projectName)
+                .replace('{{LUGAR}}', c.location)
+                .replace('{{COMPENSACION}}', c.compensation)
+                .replace('{{USOS}}', c.license);
+
+            const container = document.getElementById('contract-document-preview');
+
+            let modelHtml = '';
+            if (c.status === 'signed' && c.modelData) {
+                const md = c.modelData;
+                modelHtml = `
+                    <div class="border-t border-zinc-200 pt-6 mt-4 flex flex-col gap-4">
+                        <h4 class="font-bold text-sm text-zinc-900">Model Information:</h4>
+                        <div class="flex flex-col sm:flex-row gap-5 items-start">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-zinc-700 flex-1 min-w-0">
+                            <p><strong>Name:</strong> ${escapeHTML(md.fullName)}</p>
+                            <p><strong>CURP / INE:</strong> ${escapeHTML(md.curp)}</p>
+                            <p><strong>Date of Birth:</strong> ${md.dob} | <strong>Gender:</strong> ${md.gender}</p>
+                            <p><strong>Phone:</strong> ${escapeHTML(md.phone)} | <strong>Email:</strong> ${escapeHTML(md.email)}</p>
+                            <p class="sm:col-span-2"><strong>Address:</strong> ${escapeHTML(md.address)}</p>
+                            ${md.ethnicity ? `<p class="sm:col-span-2"><strong>Ethnicity:</strong> ${escapeHTML(md.ethnicity)}</p>` : ''}
+                            ${md.guardianName ? `<p class="sm:col-span-2"><strong>Parent/Guardian:</strong> ${escapeHTML(md.guardianName)} (CURP: ${escapeHTML(md.guardianCurp)})</p>` : ''}
+                        </div>
+                        ${md.photoDataUrl ? `<div class="shrink-0 w-32"><img src="${md.photoDataUrl}" alt="Fotografía del modelo" class="w-32 h-40 object-cover rounded border border-zinc-200"><p class="text-[10px] text-zinc-500 mt-1 text-center">Model Photograph</p></div>` : ''}
+                        </div>
+                        <div class="mt-4 p-4 border border-zinc-200 rounded-xl bg-zinc-50 flex flex-col items-center gap-2 max-w-xs">
+                            <img src="${md.signatureDataUrl}" alt="Model Signature" class="max-h-20 object-contain">
+                            <span class="text-[10px] text-zinc-400 font-mono">Model's Signature — Date: ${new Date(c.signedAt).toLocaleDateString()}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div class="flex items-center justify-between border-b border-zinc-200 pb-4">
+                    <div>
+                        <h2 class="font-bold text-lg text-zinc-900">MODEL RELEASE</h2>
+                        <p class="text-xs text-zinc-500 font-mono">Shoot Date: ${c.shootDate} | Release No.: ${c.releaseNo}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs font-semibold text-zinc-800">Braiton Saldaña</span>
+                    </div>
+                </div>
+                <div class="text-xs leading-relaxed text-zinc-700 whitespace-pre-line font-sans">${escapeHTML(terms)}</div>
+                ${modelHtml}
+            `;
+        }
+
+        // Signature Canvas Logic
+        function setupCanvas() {
+            signatureCanvas = document.getElementById('sig-canvas');
+            if (!signatureCanvas) return;
+            signatureCtx = signatureCanvas.getContext('2d');
+            resizeSignatureCanvas();
+
+            window.addEventListener('resize', () => resizeSignatureCanvas());
+
+            signatureCanvas.addEventListener('mousedown', startDrawing);
+            signatureCanvas.addEventListener('mousemove', draw);
+            signatureCanvas.addEventListener('mouseup', stopDrawing);
+            signatureCanvas.addEventListener('mouseleave', stopDrawing);
+
+            signatureCanvas.addEventListener('touchstart', (e) => { e.preventDefault(); startDrawing(e.touches[0]); });
+            signatureCanvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e.touches[0]); });
+            signatureCanvas.addEventListener('touchend', (e) => { e.preventDefault(); stopDrawing(); });
+        }
+
+        function resizeSignatureCanvas() {
+            if (!signatureCanvas) return;
+            const rect = signatureCanvas.getBoundingClientRect();
+            const previous = document.createElement('canvas');
+            previous.width = signatureCanvas.width; previous.height = signatureCanvas.height;
+            if (previous.width && previous.height) previous.getContext('2d').drawImage(signatureCanvas, 0, 0);
+            signatureCanvas.width = rect.width * window.devicePixelRatio;
+            signatureCanvas.height = rect.height * window.devicePixelRatio;
+            signatureCtx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            signatureCtx.strokeStyle = '#18181b';
+            signatureCtx.lineWidth = 2.5;
+            signatureCtx.lineCap = 'round';
+            signatureCtx.lineJoin = 'round';
+            if (previous.width && previous.height && signatureTouched) signatureCtx.drawImage(previous, 0, 0, rect.width, rect.height);
+        }
+
+        function getMousePos(e) {
+            const rect = signatureCanvas.getBoundingClientRect();
+            return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+
+        function startDrawing(e) {
+            isDrawing = true;
+            signatureTouched = true;
+            const pos = getMousePos(e);
+            signatureCtx.beginPath();
+            signatureCtx.moveTo(pos.x, pos.y);
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const pos = getMousePos(e);
+            signatureCtx.lineTo(pos.x, pos.y);
+            signatureCtx.stroke();
+        }
+
+        function stopDrawing() {
+            isDrawing = false;
+        }
+
+        function clearSignature() {
+            if (!signatureCanvas) return;
+            signatureCtx.clearRect(0, 0, signatureCanvas.width, signatureCanvas.height);
+            signatureTouched = false;
+        }
+
+        function checkMinorAge() {
+            const dobVal = document.getElementById('model-dob').value;
+            if (!dobVal) return;
+            const dob = new Date(dobVal);
+            const today = new Date();
+            let age = today.getFullYear() - dob.getFullYear();
+            const m = today.getMonth() - dob.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+
+            const guardianSection = document.getElementById('guardian-section');
+            if (age < 18) {
+                guardianSection.classList.remove('hidden');
+                guardianSection.classList.add('flex');
+            } else {
+                guardianSection.classList.remove('flex');
+                guardianSection.classList.add('hidden');
+            }
+        }
+
+        let modelPhotoDataUrl = '';
+        async function previewModelPhoto() {
+            const file = document.getElementById('model-photo').files?.[0];
+            const preview = document.getElementById('model-photo-preview');
+            modelPhotoDataUrl = '';
+            preview.classList.add('hidden');
+            if (!file) return;
+            if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 10 * 1024 * 1024) {
+                document.getElementById('model-photo').value = '';
+                showToast('Selecciona una imagen JPG, PNG o WebP de máximo 10 MB.', 'error');
+                return;
+            }
+            try {
+                const url = URL.createObjectURL(file);
+                const img = new Image();
+                try {
+                    await new Promise((resolve, reject) => {
+                        img.onload = resolve; img.onerror = reject; img.src = url;
+                    });
+                    const canvas = document.createElement('canvas');
+                    const scale = Math.min(1, 480 / Math.max(img.naturalWidth, img.naturalHeight));
+                    canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+                    canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    for (const quality of [0.75, 0.6, 0.45, 0.3]) {
+                        modelPhotoDataUrl = canvas.toDataURL('image/jpeg', quality);
+                        if (modelPhotoDataUrl.length <= 90000) break;
+                    }
+                    if (modelPhotoDataUrl.length > 90000) throw new Error('La fotografía no se pudo reducir lo suficiente.');
+                    preview.src = modelPhotoDataUrl;
+                    preview.classList.remove('hidden');
+                } finally { URL.revokeObjectURL(url); }
+            } catch (e) {
+                modelPhotoDataUrl = '';
+                document.getElementById('model-photo').value = '';
+                showToast('No se pudo procesar la fotografía: ' + e.message, 'error');
+            }
+        }
+
+        async function submitModelSignature() {
+            const fullName = document.getElementById('model-full-name').value.trim();
+            const dob = document.getElementById('model-dob').value;
+            const gender = document.getElementById('model-gender').value;
+            const curp = document.getElementById('model-curp').value.trim().toUpperCase();
+            const address = document.getElementById('model-address').value.trim();
+            const phone = document.getElementById('model-phone').value.trim();
+            const email = document.getElementById('model-email').value.trim();
+            const ethnicity = document.getElementById('model-ethnicity').value;
+            const guardianName = document.getElementById('guardian-name')?.value.trim() || '';
+            const guardianCurp = document.getElementById('guardian-curp')?.value.trim().toUpperCase() || '';
+
+            if (!fullName || !dob || !curp || !address || !phone || !email) {
+                showToast('Por favor completa todos los campos obligatorios.', 'error');
+                return;
+            }
+            const birthDate = new Date(dob + 'T00:00:00');
+            const now = new Date();
+            let age = now.getFullYear() - birthDate.getFullYear();
+            if (now.getMonth() < birthDate.getMonth() || (now.getMonth() === birthDate.getMonth() && now.getDate() < birthDate.getDate())) age--;
+            if (age < 18 && (!guardianName || !guardianCurp)) {
+                showToast('Para un modelo menor de edad, completa los datos del padre o tutor legal.', 'error');
+                return;
+            }
+
+            // Verificar si el canvas está vacío
+            const blank = document.createElement('canvas');
+            blank.width = signatureCanvas.width;
+            blank.height = signatureCanvas.height;
+            if (signatureCanvas.toDataURL() === blank.toDataURL()) {
+                showToast('Por favor introduce tu firma digital.', 'error');
+                return;
+            }
+
+            const signatureDataUrl = signatureCanvas.toDataURL('image/png');
+            if (!remoteToken || !remoteContract || activeContractId !== remoteContract.id) {
+                showToast('Abre el enlace privado del modelo para firmar.', 'error'); return;
+            }
+            if (!signatureTouched) { showToast('Dibuja tu firma.', 'error'); return; }
+            const submitButton = document.querySelector('#signing-form-box button[onclick="submitModelSignature()"]');
+            if (submitButton) submitButton.disabled = true;
+            try {
+                await signingRequest({ action: 'sign', token: remoteToken, modelData: {
+                    fullName, dob, gender, curp, address, phone, email, ethnicity, guardianName, guardianCurp, signatureDataUrl, photoDataUrl: modelPhotoDataUrl
+                }});
+                remoteToken = null;
+                document.getElementById('signing-form-box').innerHTML = '<div class="text-center py-8"><h3 class="font-bold text-xl mb-3">Firma enviada correctamente</h3><p>Tu contrato quedó registrado. Puedes cerrar esta página.</p></div>';
+                document.getElementById('signing-badge').textContent = 'Firmado';
+                showToast('Firma guardada correctamente en Supabase.', 'success');
+            } catch (error) {
+                showToast('No se pudo guardar la firma: ' + error.message, 'error');
+                if (submitButton) submitButton.disabled = false;
+            }
+
+        }
+
+        function setupPhotographerCanvas() {
+            if (photographerCanvasReady) return;
+            const canvas = document.getElementById('photographer-signature-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.strokeStyle = '#18181b'; ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+            let drawing = false;
+            const point = e => { const r = canvas.getBoundingClientRect(); return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}; };
+            canvas.addEventListener('pointerdown', e => {
+                drawing = true; photographerSignatureDrawn = true;
+                canvas.setPointerCapture(e.pointerId);
+                const p=point(e); ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+.1,p.y+.1);ctx.stroke();
+            });
+            canvas.addEventListener('pointermove', e => { if (!drawing) return; const p=point(e); ctx.lineTo(p.x,p.y);ctx.stroke(); });
+            for (const event of ['pointerup','pointercancel','lostpointercapture']) canvas.addEventListener(event,()=>{drawing=false;});
+            photographerCanvasReady = true;
+        }
+        function openPhotographerSignature() {
+            if (!currentUser) return showToast('Inicia sesión para guardar tu firma.', 'error');
+            const modal = document.getElementById('photographer-signature-modal');
+            modal.classList.remove('hidden'); modal.classList.add('flex');
+            setupPhotographerCanvas();
+            clearPhotographerSignatureCanvas();
+            if (photographerSignatureDataUrl) {
+                const img = new Image();
+                img.onload = () => document.getElementById('photographer-signature-canvas').getContext('2d').drawImage(img,0,0,800,260);
+                img.src = photographerSignatureDataUrl;
+                document.getElementById('photographer-signature-status').textContent = 'Firma guardada cargada. Puedes dibujar encima o limpiar para sustituirla.';
+            }
+        }
+        function closePhotographerSignature() {
+            const modal = document.getElementById('photographer-signature-modal');
+            modal.classList.add('hidden'); modal.classList.remove('flex');
+        }
+        function clearPhotographerSignatureCanvas() {
+            const canvas = document.getElementById('photographer-signature-canvas');
+            canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+            photographerSignatureDrawn = false;
+            document.getElementById('photographer-signature-status').textContent = 'Dibuja tu firma en el recuadro.';
+        }
+        async function savePhotographerSignature() {
+            if (!currentUser || !photographerSignatureDrawn) return showToast('Dibuja una firma antes de guardar.', 'error');
+            const btn = document.getElementById('photographer-signature-save');
+            btn.disabled = true;
+            try {
+                const canvas = document.getElementById('photographer-signature-canvas');
+                const png = canvas.toDataURL('image/png');
+                const {data,error} = await supabaseClient.auth.updateUser({data:{photographer_signature_png:png}});
+                if (error) throw error;
+                photographerSignatureDataUrl = png;
+                currentUser = data.user || currentUser;
+                showToast('Firma guardada en tu perfil.', 'success');
+                closePhotographerSignature();
+            } catch(e) { showToast('No se pudo guardar la firma: '+e.message,'error'); }
+            finally {btn.disabled=false;}
+        }
+        async function removePhotographerSignature() {
+            if (!currentUser || !confirm('¿Eliminar tu firma guardada?')) return;
+            try {
+                const {data,error} = await supabaseClient.auth.updateUser({data:{photographer_signature_png:null}});
+                if (error) throw error;
+                currentUser = data.user || currentUser;
+                photographerSignatureDataUrl = '';
+                clearPhotographerSignatureCanvas();
+                showToast('Firma eliminada del perfil.', 'success');
+                closePhotographerSignature();
+            } catch(e) {showToast('No se pudo eliminar la firma: '+e.message,'error');}
+        }
+
+        // PDF Export
+        async function downloadPDF(contractId) {
+            const c = contractsList.find(x => x.id === contractId);
+            if (!c || c.status !== 'signed') {
+                showToast('El contrato debe estar firmado para exportar PDF.', 'error');
+                return;
+            }
+
+            showToast('Generando PDF oficial...', 'info');
+            const { jsPDF } = window.jspdf;
+
+            const tempDiv = document.createElement('div');
+            tempDiv.style.width = '800px';
+            tempDiv.style.padding = '40px';
+            tempDiv.style.background = '#ffffff';
+            tempDiv.style.color = '#18181b';
+            tempDiv.style.fontFamily = 'Inter, sans-serif';
+
+            let terms = DEFAULT_TERMS
+                .replace('{{FECHA}}', c.shootDate)
+                .replace('{{PROYECTO}}', c.projectName)
+                .replace('{{LUGAR}}', c.location)
+                .replace('{{COMPENSACION}}', c.compensation)
+                .replace('{{USOS}}', c.license);
+
+            tempDiv.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #e4e4e7; padding-bottom:16px; margin-bottom:20px;">
+                    <div>
+                        <h2 style="font-size:20px; font-weight:bold; margin:0;">MODEL RELEASE</h2>
+                        <p style="font-size:11px; color:#71717a; font-family:monospace; margin:4px 0 0 0;">Shoot Date: ${c.shootDate} | Release No.: ${c.releaseNo}</p>
+                    </div>
+                    <div style="font-size:12px; font-weight:bold; font-family:Inter,sans-serif; color:#18181b;">Braiton Saldaña</div>
+                </div>
+                <div style="font-size:11px; line-height:1.6; color:#3f3f46; white-space:pre-line; margin-bottom:24px;">${escapeHTML(terms)}</div>
+                <div style="border-top:1px solid #e4e4e7; padding-top:16px;">
+                    <h4 style="font-size:13px; font-weight:bold; margin-bottom:8px;">Model Information:</h4>
+                    <div style="display:flex; align-items:flex-start; gap:22px; width:100%; box-sizing:border-box;">
+                        <div style="flex:1; min-width:0; font-size:11px; color:#3f3f46; line-height:1.55; overflow-wrap:anywhere;">
+                            <p style="margin:0 0 7px;"><strong>Name:</strong> ${escapeHTML(c.modelData.fullName)}</p>
+                            <p style="margin:0 0 7px;"><strong>CURP / INE:</strong> ${escapeHTML(c.modelData.curp)}</p>
+                            <p style="margin:0 0 7px;"><strong>Date of Birth:</strong> ${escapeHTML(c.modelData.dob)} | <strong>Gender:</strong> ${escapeHTML(c.modelData.gender)}</p>
+                            <p style="margin:0 0 7px;"><strong>Phone:</strong> ${escapeHTML(c.modelData.phone)}</p>
+                            <p style="margin:0 0 7px;"><strong>Email:</strong> ${escapeHTML(c.modelData.email)}</p>
+                            <p style="margin:0 0 7px;"><strong>Address:</strong> ${escapeHTML(c.modelData.address)}</p>
+                            ${c.modelData.ethnicity ? `<p style="margin:0 0 7px;"><strong>Ethnicity:</strong> ${escapeHTML(c.modelData.ethnicity)}</p>` : ''}
+                            ${c.modelData.guardianName ? `<p style="margin:0 0 7px;"><strong>Parent/Guardian:</strong> ${escapeHTML(c.modelData.guardianName)} (CURP: ${escapeHTML(c.modelData.guardianCurp)})</p>` : ''}
+                        </div>
+                        ${c.modelData.photoDataUrl ? `<div style="width:126px; flex:0 0 126px; text-align:center;">
+                            <img src="${c.modelData.photoDataUrl}" alt="Model photograph" style="display:block; width:126px; height:164px; object-fit:cover; border:1px solid #d4d4d8; border-radius:4px; box-sizing:border-box;">
+                            <div style="font-size:10px; margin-top:6px; color:#52525b;">Model Photograph</div>
+                        </div>` : ''}
+                    </div>
+                    <div style="display:flex;gap:30px;margin-top:22px;align-items:flex-start;page-break-inside:avoid;">
+                      <div style="flex:1;min-width:0;">
+                        <img src="${c.modelData.signatureDataUrl}" style="width:220px;max-height:65px;object-fit:contain;object-position:left bottom;display:block;">
+                        <div style="border-top:1px solid #a1a1aa;padding-top:5px;margin-top:5px;font-size:10px;color:#52525b;">Model Signature — ${new Date(c.signedAt).toLocaleDateString()}</div>
+                      </div>
+                      <div style="flex:1;min-width:0;">
+                        ${photographerSignatureDataUrl ? `<img src="${photographerSignatureDataUrl}" style="width:220px;max-height:65px;object-fit:contain;object-position:left bottom;display:block;">` : `<div style="height:65px;"></div>`}
+                        <div style="border-top:1px solid #a1a1aa;padding-top:5px;margin-top:5px;font-size:10px;color:#52525b;">Photographer Signature — Braiton Saldaña${photographerSignatureDataUrl ? '' : ' (pendiente)'}</div>
+                      </div>
+                    </div>
+                    <div style="display:none;">
+                        <img src="${c.modelData.signatureDataUrl}" style="max-height:60px; object-fit:contain; border-bottom:1px solid #d4d4d8; padding-bottom:4px;">
+                        <span style="font-size:10px; color:#71717a; font-family:monospace; margin-top:4px;">Model's Signature — Date Signed: ${new Date(c.signedAt).toLocaleDateString()}</span>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(tempDiv);
+            try {
+                const canvas = await html2canvas(tempDiv, { scale: 2, useCORS: true });
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const margin = 12;
+                const pdfWidth = pdf.internal.pageSize.getWidth() - 2 * margin;
+                const pdfPageHeight = pdf.internal.pageSize.getHeight() - 2 * margin;
+                const pixelsPerPage = Math.floor((pdfPageHeight / pdfWidth) * canvas.width);
+                let page = 0;
+                for (let y = 0; y < canvas.height; y += pixelsPerPage) {
+                    if (page++) pdf.addPage();
+                    const segment = document.createElement('canvas');
+                    segment.width = canvas.width;
+                    segment.height = Math.min(pixelsPerPage, canvas.height - y);
+                    segment.getContext('2d').drawImage(canvas, 0, y, canvas.width, segment.height, 0, 0, segment.width, segment.height);
+                    const segmentHeightMm = segment.height * pdfWidth / segment.width;
+                    pdf.addImage(segment.toDataURL('image/png'), 'PNG', margin, margin, pdfWidth, segmentHeightMm);
+                }
+                pdf.save(`Model_Release_${c.releaseNo}_${c.modelData.fullName.replace(/\s+/g, '_')}.pdf`);
+                showToast('PDF descargado con éxito.', 'success');
+            } catch(e) {
+                showToast('Error al generar el PDF.', 'error');
+            }
+            document.body.removeChild(tempDiv);
+        }
+
+        // Utilidades y Respaldo JSON
+        function exportJSONBackup() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(contractsList, null, 2));
+            const dlAnchor = document.createElement('a');
+            dlAnchor.setAttribute("href", dataStr);
+            dlAnchor.setAttribute("download", `braiton_saldana_releases_backup_${new Date().toISOString().split('T')[0]}.json`);
+            document.body.appendChild(dlAnchor);
+            dlAnchor.click();
+            dlAnchor.remove();
+            showToast('Respaldo JSON descargado.', 'success');
+        }
+
+        function showToast(message, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            const bgCol = type === 'error' ? 'bg-red-600 text-white' : (type === 'success' ? 'bg-emerald-600 text-white' : 'bg-zinc-900 text-white');
+            toast.className = `px-4 py-3 rounded-xl shadow-lg text-xs font-semibold pointer-events-auto transition transform translate-y-2 opacity-0 ${bgCol}`;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => { toast.classList.remove('translate-y-2', 'opacity-0'); }, 10);
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => container.removeChild(toast), 300);
+            }, 3500);
+        }
+
+        function escapeHTML(str) {
+            if (!str) return '';
+            return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag] || tag));
+        }
+
+        function initTheme() {
+            if (localStorage.theme === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        }
+
+        function toggleDarkMode() {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.theme = 'light';
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.theme = 'dark';
+            }
+        }
+    </script>
+</body>
+</html>
