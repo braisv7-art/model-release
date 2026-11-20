@@ -291,7 +291,7 @@
     <div id="photographer-signature-modal" class="hidden fixed inset-0 z-[100] bg-black/60 p-4 items-center justify-center">
       <div class="bg-white dark:bg-studio-900 rounded-2xl p-6 w-full max-w-xl shadow-2xl">
         <h3 class="font-bold text-xl mb-2">Firma del fotógrafo</h3>
-        <p class="text-sm text-zinc-500 mb-4">Dibuja tu firma. Se guardará en tu perfil de Supabase para usarla en los PDF que descargues.</p>
+        <p class="text-sm text-zinc-500 mb-4">Dibuja tu firma. Se guardará de forma privada en Supabase Storage para usarla en los PDF que descargues.</p>
         <canvas id="photographer-signature-canvas" width="800" height="260" style="width:100%;height:180px;touch-action:none;background:white;border:1px solid #d4d4d8;border-radius:10px;display:block"></canvas>
         <p id="photographer-signature-status" class="text-sm text-zinc-500 mt-3" role="status"></p>
         <div class="flex flex-wrap gap-2 justify-end mt-4">
@@ -317,6 +317,7 @@
         const SIGNING_ENDPOINT = SUPABASE_CONFIG.url + '/functions/v1/model-release-signing';
         let currentUser = null;
         let photographerSignatureDataUrl = '';
+        const PHOTOGRAPHER_SIGNATURE_BUCKET = 'photographer-signatures';
         let photographerSignatureDrawn = false;
         let photographerCanvasReady = false;
         let signatureCanvas, signatureCtx, isDrawing = false;
@@ -388,7 +389,8 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
 
         async function showAdminSession(user) {
             currentUser = user || null;
-            photographerSignatureDataUrl = typeof user?.user_metadata?.photographer_signature_png === 'string' ? user.user_metadata.photographer_signature_png : '';
+            photographerSignatureDataUrl = '';
+            if (user) await loadPhotographerSignature();
             contractsList = [];
             const loggedIn = !!currentUser;
             document.getElementById('auth-screen').classList.toggle('hidden', loggedIn);
@@ -951,6 +953,30 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             photographerSignatureDrawn = false;
             document.getElementById('photographer-signature-status').textContent = 'Dibuja tu firma en el recuadro.';
         }
+        function photographerSignaturePath() {
+            if (!currentUser?.id) throw new Error('Inicia sesión primero.');
+            return currentUser.id + '/signature.png';
+        }
+        async function loadPhotographerSignature() {
+            if (!currentUser || !supabaseClient) return;
+            const userId = currentUser.id;
+            const {data, error} = await supabaseClient.storage.from(PHOTOGRAPHER_SIGNATURE_BUCKET).download(photographerSignaturePath());
+            if (userId !== currentUser?.id) return;
+            if (error) {
+                // Una firma todavía no guardada es una situación normal.
+                if (!/not found|object not found|404/i.test(error.message || '')) {
+                    console.warn('No se pudo recuperar la firma del fotógrafo:', error.message);
+                    showToast('No se pudo cargar Mi firma desde Storage: ' + error.message, 'error');
+                }
+                return;
+            }
+            photographerSignatureDataUrl = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = () => reject(new Error('No se pudo leer la imagen de la firma.'));
+                reader.readAsDataURL(data);
+            });
+        }
         async function savePhotographerSignature() {
             if (!currentUser || !photographerSignatureDrawn) return showToast('Dibuja una firma antes de guardar.', 'error');
             const btn = document.getElementById('photographer-signature-save');
@@ -958,24 +984,26 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
             try {
                 const canvas = document.getElementById('photographer-signature-canvas');
                 const png = canvas.toDataURL('image/png');
-                const {data,error} = await supabaseClient.auth.updateUser({data:{photographer_signature_png:png}});
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                if (!blob) throw new Error('No se pudo convertir la firma a PNG.');
+                const {error} = await supabaseClient.storage.from(PHOTOGRAPHER_SIGNATURE_BUCKET)
+                    .upload(photographerSignaturePath(), blob, {contentType:'image/png', upsert:true, cacheControl:'0'});
                 if (error) throw error;
                 photographerSignatureDataUrl = png;
-                currentUser = data.user || currentUser;
-                showToast('Firma guardada en tu perfil.', 'success');
+                showToast('Firma guardada de forma privada en Storage.', 'success');
                 closePhotographerSignature();
-            } catch(e) { showToast('No se pudo guardar la firma: '+e.message,'error'); }
+            } catch(e) { showToast('No se pudo guardar la firma: ' + e.message, 'error'); }
             finally {btn.disabled=false;}
         }
         async function removePhotographerSignature() {
             if (!currentUser || !confirm('¿Eliminar tu firma guardada?')) return;
             try {
-                const {data,error} = await supabaseClient.auth.updateUser({data:{photographer_signature_png:null}});
+                const {error} = await supabaseClient.storage.from(PHOTOGRAPHER_SIGNATURE_BUCKET)
+                    .remove([photographerSignaturePath()]);
                 if (error) throw error;
-                currentUser = data.user || currentUser;
                 photographerSignatureDataUrl = '';
                 clearPhotographerSignatureCanvas();
-                showToast('Firma eliminada del perfil.', 'success');
+                showToast('Firma eliminada de Storage.', 'success');
                 closePhotographerSignature();
             } catch(e) {showToast('No se pudo eliminar la firma: '+e.message,'error');}
         }
@@ -988,6 +1016,7 @@ For good and valuable consideration ({{COMPENSACION}}) I acknowledge as received
                 return;
             }
 
+            if (!photographerSignatureDataUrl) await loadPhotographerSignature();
             showToast('Generando PDF oficial...', 'info');
             const { jsPDF } = window.jspdf;
 
